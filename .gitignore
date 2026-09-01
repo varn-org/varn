@@ -1,0 +1,72 @@
+# os
+Thumbs.db
+.DS_Store
+
+# ide
+.idea
+.vscode
+.iml
+.claude
+.cursor
+
+# auto generated
+**/*.pyc
+*.autosave
+*.user
+*.user.*
+.vs
+__pycache__
+Brewfile.lock.json
+.metals
+.ruff_cache
+
+# node
+node_modules
+package-lock.json
+
+# cmake
+CMakeUserPresets.json
+CMakeSettings.json
+CMakeLists.txt.user
+
+# java/kotlin
+.gradle
+.kotlin
+
+# cxx
+.cxx
+
+# flutter
+*.reflectable.dart
+
+# build
+/build/
+/build-*/
+
+# android
+android/**/build/
+android/local.properties
+
+# wasm
+apps/wasm/public/wasm/*.js
+apps/wasm/public/wasm/*.wasm
+
+# python
+*.egg-info
+.pytest_cache
+poetry.lock
+
+# environments, anchored to the repo root so they never swallow a source directory named env
+.env
+/.venv
+/env/
+/venv/
+/.venv*/
+/ENV/
+/env.bak/
+/venv.bak/
+
+# temp
+/temp
+/tmp
+/.bench-components/

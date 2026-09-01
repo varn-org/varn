@@ -1,0 +1,10 @@
+# keep the build context small and reproducible: source only, no build output or vendored installs.
+.git
+build
+build-*
+**/__pycache__
+*.o
+*.obj
+apps/wasm/node_modules
+apps/wasm/dist
+bench/servers/node_modules

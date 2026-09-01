@@ -1,0 +1,191 @@
+name: Linux
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # a newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled
+  group: build-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  build:
+    name: Linux (x86_64)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CPM_SOURCE_CACHE }}
+            build/release/_deps
+          key: cpm-linux-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt') }}
+          restore-keys: cpm-linux-
+
+      - name: Configure
+        run: cmake -B build/release -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build/release --config ${{ env.BUILD_TYPE }} -j$(nproc)
+
+      - name: Run Lua test suite
+        run: python3 varn.py test --build-dir build/release
+
+      # the mobile apps run these through a harness rather than a shell, so they are checked the same way
+      - name: Verify the app samples
+        run: VARN_TEST_DIR=$(mktemp -d) build/release/bin/varn apps/samples/verify.lua
+
+      - name: Package
+        run: |
+          mkdir -p dist/varn-linux-x86_64
+          cp build/release/bin/varn dist/varn-linux-x86_64/
+          cp LICENSE.md dist/varn-linux-x86_64/
+          tar -czf varn-linux-x86_64.tar.gz -C dist varn-linux-x86_64
+
+      - name: Build the installer
+        run: |
+          cpack --config build/release/CPackConfig.cmake -B build/pkg
+          mv build/pkg/*.deb varn-linux-x86_64.deb
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: varn-linux-x86_64
+          path: |
+            varn-linux-x86_64.tar.gz
+            varn-linux-x86_64.deb
+
+  cpp-tests:
+    name: C++ Tests (generic)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CPM_SOURCE_CACHE }}
+            build/test/_deps
+          key: cpm-cpptest-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt') }}
+          restore-keys: cpm-cpptest-
+
+      # a plain build with no sanitizer and the primary sanitizer-independent C++ gate
+      - name: Build and run C++ tests
+        run: python3 varn.py test-cpp --build-dir build/test
+
+  sanitize:
+    name: Sanitizers (ASan + UBSan)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CPM_SOURCE_CACHE }}
+            build/asan/_deps
+          key: cpm-asan-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt') }}
+          restore-keys: cpm-asan-
+
+      - name: Configure
+        run: cmake -B build/asan -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVARN_SANITIZE=address,undefined -DVARN_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build/asan -j$(nproc)
+
+      # detect_leaks stays off until a leak suppression list is tuned on linux, so this pass catches use-after-free, out-of-bounds, buffer overflow and undefined behavior
+      - name: Run Lua test suite under sanitizers
+        env:
+          ASAN_OPTIONS: abort_on_error=1:halt_on_error=1:detect_leaks=0
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: python3 varn.py test --build-dir build/asan
+
+      - name: Run C++ tests under sanitizers
+        env:
+          ASAN_OPTIONS: abort_on_error=1:halt_on_error=1:detect_leaks=0
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ./build/asan/bin/varn_tests
+
+  race:
+    name: Sanitizers (ThreadSanitizer)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CPM_SOURCE_CACHE }}
+            build/tsan/_deps
+          key: cpm-tsan-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt') }}
+          restore-keys: cpm-tsan-
+
+      - name: Configure
+        run: cmake -B build/tsan -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVARN_SANITIZE=thread -DVARN_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build/tsan --target varn_tests -j$(nproc)
+
+      # the C++ target carries the multi-threaded runtime and teardown tests, which is where a race lives; the lua suite is not run here because forking under tsan is pathologically slow
+      - name: Run C++ tests under ThreadSanitizer
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+        run: ./build/tsan/bin/varn_tests
+
+  portable-crypto:
+    name: Portable crypto driver (no OpenSSL)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CPM_SOURCE_CACHE }}
+            build/portable/_deps
+          key: cpm-portable-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt') }}
+          restore-keys: cpm-portable-
+
+      # compile-gate the dependency-free crypto driver so its per-platform CSPRNG and pure-C++ SHA keep building
+      - name: Configure
+        run: cmake -B build/portable -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DVARN_ENABLE_TLS=OFF -DVARN_CRYPTO_DRIVER=PORTABLE
+
+      - name: Build
+        run: cmake --build build/portable --config ${{ env.BUILD_TYPE }} -j$(nproc)
+
+      - name: Smoke the portable crypto primitives
+        run: |
+          VARN_TEST_DIR=$(mktemp -d) build/portable/bin/varn modules/crypto/lua/tests/crypto_test.lua
+          VARN_TEST_DIR=$(mktemp -d) build/portable/bin/varn modules/crypto/lua/tests/crypto_security_test.lua

@@ -1,0 +1,2 @@
+# the aar is fetched from a release rather than committed
+*.aar

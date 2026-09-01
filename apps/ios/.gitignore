@@ -1,0 +1,7 @@
+# the project and its plist are generated from project.yml, so neither belongs in the repository
+Varn.xcodeproj/
+Info.plist
+build/
+DerivedData/
+*.xcworkspace
+Version.xcconfig

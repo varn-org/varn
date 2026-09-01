@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Author: Jianhui Zhao <zhaojh329@gmail.com>
+ */
+
+#ifndef _LUA_FFI_CONFIG_H
+#define _LUA_FFI_CONFIG_H
+
+/* Flex: avoid <unistd.h> when building the vendored lexer with MSVC (no POSIX headers). */
+#if defined(_MSC_VER)
+#define YY_NO_UNISTD_H 1
+#endif
+
+#define LUA_FFI_VERSION_MAJOR  @LUA_FFI_VERSION_MAJOR@
+#define LUA_FFI_VERSION_MINOR  @LUA_FFI_VERSION_MINOR@
+#define LUA_FFI_VERSION_PATCH  @LUA_FFI_VERSION_PATCH@
+#define LUA_FFI_VERSION_STRING "@LUA_FFI_VERSION_MAJOR@.@LUA_FFI_VERSION_MINOR@.@LUA_FFI_VERSION_PATCH@"
+
+#endif

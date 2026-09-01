@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    uses: ./.github/workflows/build-macos.yml
+
+  linux:
+    uses: ./.github/workflows/build-linux.yml
+
+  windows:
+    uses: ./.github/workflows/build-windows.yml
+
+  apple:
+    uses: ./.github/workflows/build-apple.yml
+
+  android:
+    uses: ./.github/workflows/build-android.yml
+
+  wasm:
+    uses: ./.github/workflows/build-wasm.yml
+
+  release:
+    needs: [macos, linux, windows, apple, android, wasm]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
+            artifacts/*.pkg
+            artifacts/*.deb
+            artifacts/*-setup.exe

@@ -1,0 +1,94 @@
+name: macOS
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # a newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled
+  group: build-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (arm64)
+            arch: arm64
+            artifact: varn-macos-arm64
+            cmake_extra: ""
+          - name: macOS (x86_64)
+            arch: x86_64
+            artifact: varn-macos-x86_64
+            cmake_extra: -DCMAKE_OSX_ARCHITECTURES=x86_64
+
+    name: ${{ matrix.name }}
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CPM_SOURCE_CACHE }}
+            build/release/_deps
+          key: cpm-macos-${{ matrix.arch }}-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt') }}
+          restore-keys: cpm-macos-${{ matrix.arch }}-
+
+      - name: Configure
+        run: cmake -B build/release -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} ${{ matrix.cmake_extra }}
+
+      - name: Build
+        run: cmake --build build/release --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
+
+      - name: Run Lua test suite
+        if: matrix.cmake_extra == ''
+        run: python3 varn.py test --build-dir build/release
+
+      - name: Verify binary architecture
+        if: matrix.cmake_extra != ''
+        run: file build/release/bin/varn
+
+      - name: Package
+        run: |
+          mkdir -p dist/${{ matrix.artifact }}
+          cp build/release/bin/varn dist/${{ matrix.artifact }}/
+          cp LICENSE.md dist/${{ matrix.artifact }}/
+          tar -czf ${{ matrix.artifact }}.tar.gz -C dist ${{ matrix.artifact }}
+
+      - name: Build the installer
+        run: |
+          cpack --config build/release/CPackConfig.cmake -B build/pkg
+          mv build/pkg/*.pkg ${{ matrix.artifact }}.pkg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.tar.gz
+            ${{ matrix.artifact }}.pkg

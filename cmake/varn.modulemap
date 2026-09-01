@@ -1,0 +1,6 @@
+framework module varn {
+    umbrella header "varn.h"
+
+    export *
+    module * { export * }
+}

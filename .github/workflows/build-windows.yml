@@ -1,0 +1,91 @@
+name: Windows
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # a newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  build:
+    name: Windows (x86_64)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CPM_SOURCE_CACHE }}
+            build/release/_deps
+          key: cpm-windows-ninja-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt', 'modules/ffi/libffi/varn-vendor-libffi.cmake', 'modules/ffi/libffi/fficonfig.h.in') }}
+          restore-keys: cpm-windows-ninja-
+
+      - name: Configure
+        run: cmake -B build/release -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build/release --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Run Lua test suite
+        shell: pwsh
+        run: python varn.py test --build-dir build/release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/varn-windows-x86_64 | Out-Null
+          Copy-Item build/release/bin/varn.exe dist/varn-windows-x86_64/
+          Copy-Item LICENSE.md dist/varn-windows-x86_64/
+          Compress-Archive -Path dist/varn-windows-x86_64 -DestinationPath varn-windows-x86_64.zip
+
+      # the runner image ships wix but not nsis, so the generator cpack needs is installed here
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          cpack --config build/release/CPackConfig.cmake -B build/pkg
+          Move-Item (Get-ChildItem build/pkg/*.exe | Select-Object -First 1) varn-windows-x86_64-setup.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: varn-windows-x86_64
+          path: |
+            varn-windows-x86_64.zip
+            varn-windows-x86_64-setup.exe

@@ -1,0 +1,96 @@
+name: WebAssembly
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # a newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled
+  group: build-wasm-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  build:
+    name: wasm
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.17
+          actions-cache-folder: emsdk-cache
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CPM_SOURCE_CACHE }}
+            build/wasm/_deps
+          key: cpm-wasm-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt', 'modules/ffi/libffi/varn-vendor-libffi.cmake', 'modules/ffi/libffi/fficonfig.h.in') }}
+          restore-keys: cpm-wasm-
+
+      - name: Configure (Emscripten)
+        run: emcmake cmake -B build/wasm -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build WebAssembly
+        run: cmake --build build/wasm --config ${{ env.BUILD_TYPE }} -j$(nproc)
+
+      - name: Verify WebAssembly output
+        run: |
+          test -f build/wasm/bin/varn_wasm.js
+          test -f build/wasm/bin/varn_wasm.wasm
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build browser shell (Vite)
+        working-directory: apps/wasm
+        env:
+          VARN_WASM_DIR: ${{ github.workspace }}/build/wasm/bin
+        run: |
+          npm install
+          npm run build
+
+      - name: Pack browser dist
+        run: tar -czf app-wasm.tar.gz -C apps/wasm dist
+
+      # the engine on its own, which is what a site embeds when it wants the runtime rather than the playground
+      - name: Pack the engine for embedding
+        run: |
+          mkdir -p dist/varn-wasm
+          cp build/wasm/bin/varn_wasm.js build/wasm/bin/varn_wasm.wasm dist/varn-wasm/
+          cp LICENSE.md dist/varn-wasm/
+          tar -czf varn-wasm.tar.gz -C dist varn-wasm
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-wasm
+          path: |
+            app-wasm.tar.gz
+            varn-wasm.tar.gz

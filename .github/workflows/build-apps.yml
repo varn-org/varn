@@ -1,0 +1,112 @@
+name: Apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      varn-version:
+        description: "release whose native artifacts the apps link against"
+        default: "latest"
+  workflow_call:
+    inputs:
+      varn-version:
+        type: string
+        default: "latest"
+  push:
+    branches: [main]
+    paths:
+      - "apps/android/**"
+      - "apps/ios/**"
+      - "apps/samples/**"
+      - "tools/core/apps.py"
+      - ".github/workflows/build-apps.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/android/**"
+      - "apps/ios/**"
+      - "apps/samples/**"
+      - "tools/core/apps.py"
+      - ".github/workflows/build-apps.yml"
+
+concurrency:
+  group: build-apps-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VARN_VERSION: ${{ inputs.varn-version || 'latest' }}
+
+jobs:
+  android:
+    name: Android app
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # the app links the released aar rather than building the engine from source
+      - name: Fetch the engine
+        run: python3 varn.py fetch-native --platform android --version ${{ env.VARN_VERSION }}
+
+      - name: Build
+        working-directory: apps/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      # the apk is only useful when it carries the engine and the shared samples, so both are checked
+      - name: Verify the apk
+        working-directory: apps/android
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          unzip -l "$APK" | grep -q "lib/arm64-v8a/libvarn.so"
+          unzip -l "$APK" | grep -q "assets/manifest.json"
+          test "$(unzip -l "$APK" | grep -c 'assets/lua/')" -eq "$(ls ../samples/lua | wc -l)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: varn-android-app
+          path: apps/android/app/build/outputs/apk/debug/app-debug.apk
+
+  ios:
+    name: iOS app
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Fetch the engine
+        run: python3 varn.py fetch-native --platform ios --version ${{ env.VARN_VERSION }}
+
+      - name: Generate the project
+        working-directory: apps/ios
+        run: xcodegen generate
+
+      # a simulator build needs no signing identity, which is what keeps this runnable in ci
+      - name: Build
+        working-directory: apps/ios
+        run: |
+          xcodebuild build \
+            -project Varn.xcodeproj \
+            -scheme Varn \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO | xcpretty || exit ${PIPESTATUS[0]}
+
+      - name: Verify the app bundle
+        working-directory: apps/ios
+        run: |
+          APP=$(find build/Build/Products -name "Varn.app" -maxdepth 3 | head -1)
+          test -n "$APP"
+          test -d "$APP/Frameworks/varn.framework"
+          test -f "$APP/samples/manifest.json"
+          test "$(ls "$APP/samples/lua" | wc -l)" -eq "$(ls ../samples/lua | wc -l)"

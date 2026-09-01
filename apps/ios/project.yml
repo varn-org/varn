@@ -1,0 +1,79 @@
+name: Varn
+options:
+  bundleIdPrefix: com.varn
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+configs:
+  Debug: debug
+  Release: release
+
+# the version comes from the fetched engine, written by: python3 varn.py fetch-native
+configFiles:
+  Debug: Version.xcconfig
+  Release: Version.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 99AHAA343Q
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    # the app is dark only, so no asset catalog appearance is needed
+    TARGETED_DEVICE_FAMILY: "1,2"
+
+targets:
+  Varn:
+    type: application
+    platform: iOS
+
+    sources:
+      - path: Sources
+      # the lua samples live beside the android app rather than inside either one, so both ship the same set
+      - path: ../samples
+        name: Samples
+        type: folder
+        buildPhase: resources
+
+    dependencies:
+      # the released xcframework, fetched with: python3 varn.py fetch-native
+      - framework: Frameworks/varn.xcframework
+        embed: true
+        codeSign: true
+
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Varn
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "1"
+        # the default launch screen needs no storyboard, and the style is pinned so the system never repaints the app
+        UILaunchScreen: {}
+        UIUserInterfaceStyle: Dark
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+
+    # ios keeps its roots in the keychain rather than on disk, so the engine reads a bundled pem instead;
+    # it is copied from the build host at build time so it never goes stale inside the repository
+    postBuildScripts:
+      - name: Bundle the CA roots
+        script: |
+          set -e
+          for candidate in /etc/ssl/cert.pem /etc/ssl/certs/ca-certificates.crt; do
+            if [ -f "$candidate" ]; then
+              cp "$candidate" "${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/cacert.pem"
+              exit 0
+            fi
+          done
+          echo "error: no CA bundle found on the build host" >&2
+          exit 1
+        basedOnDependencyAnalysis: false
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.varn.app
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- one palette only, so the app looks the same whatever the system theme is set to -->
+<resources>
+    <color name="varn_background">#FF09090B</color>
+    <color name="varn_surface">#FF131316</color>
+    <color name="varn_border">#FF27272A</color>
+    <color name="varn_field">#FF0B0B0E</color>
+    <color name="varn_text">#FFE4E4E7</color>
+    <color name="varn_text_muted">#FFA1A1AA</color>
+    <color name="varn_text_faint">#FF71717A</color>
+    <color name="varn_accent">#FF06B6D4</color>
+    <color name="varn_on_accent">#FF09090B</color>
+    <color name="varn_output">#FFA7F3D0</color>
+    <color name="varn_error">#FFF87171</color>
+</resources>

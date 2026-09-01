@@ -1,0 +1,89 @@
+name: Android
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # a newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled
+  group: build-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  build:
+    name: Android (aar)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install pinned Android NDK and CMake
+        run: |
+          # the gradle module pins ndk 27.0.12077973 and cmake 3.31.6 (poco needs >= 3.26).
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973" "cmake;3.31.6" >/dev/null
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-android-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt') }}
+          restore-keys: cpm-android-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-android-${{ hashFiles('android/**/*.gradle.kts', 'android/**/gradle-wrapper.properties') }}
+          restore-keys: gradle-android-
+
+      - name: Build AAR (all ABIs)
+        run: python3 varn.py android --config ${{ env.BUILD_TYPE }}
+
+      - name: Locate AAR
+        id: aar
+        run: |
+          AAR=$(ls android/varn/build/outputs/aar/*-release.aar | head -1)
+          test -f "$AAR"
+          echo "path=$AAR" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$AAR")" >> "$GITHUB_OUTPUT"
+
+      - name: Package
+        run: |
+          mkdir -p dist/varn-android
+          cp "${{ steps.aar.outputs.path }}" "dist/varn-android/${{ steps.aar.outputs.name }}"
+          cp LICENSE.md dist/varn-android/
+          tar -czf varn-android-aar.tar.gz -C dist varn-android
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: varn-android-aar
+          path: varn-android-aar.tar.gz
