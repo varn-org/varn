@@ -1,7 +1,6 @@
 # 🖥️ platform
 
-Host and build information — operating system, CPU architecture, build version, and shared-library
-naming pieces — read directly from the host OS and build APIs with no external dependency.
+Host and build information — operating system, CPU architecture, build version, and shared-library naming pieces — read directly from the host OS and build APIs with no external dependency.
 
 ```lua
 local platform = require("platform")

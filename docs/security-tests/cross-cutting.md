@@ -1,7 +1,6 @@
 # Cross-cutting tests (apply to every module)
 
-Combine each axis (memory, integer, concurrency, resource/OOM, input, error handling)
-with every entry point of every module. These rows are the shared baseline.
+Combine each axis (memory, integer, concurrency, resource/OOM, input, error handling) with every entry point of every module. These rows are the shared baseline.
 
 ### Memory safety (C/C++)
 
@@ -13,7 +12,7 @@ with every entry point of every module. These rows are the shared baseline.
 | XC-004 | Out-of-bounds read | CWE-125 | crafted offset/length reads past a buffer, leaking memory |
 | XC-005 | Out-of-bounds write | CWE-787 | controlled index writes outside a buffer → corruption/RCE primitive |
 | XC-006 | Off-by-one | CWE-193 | boundary index `== len` writes/reads one element too far |
-| XC-007 | Use-after-free | CWE-416 | object used after free/GC; reclaimed memory is attacker-controlled |
+| XC-007 | Use-after-free | CWE-416 | object used after free/GC. Reclaimed memory is attacker-controlled |
 | XC-008 | Use-after-return | CWE-562 | a pointer to a stack local escapes its scope |
 | XC-009 | Use-after-move | CWE-825 | a moved-from C++ object is read |
 | XC-010 | Double free | CWE-415 | freeing the same pointer twice corrupts allocator metadata |

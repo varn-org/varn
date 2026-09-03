@@ -19,8 +19,7 @@ print(ffi.C.strlen("hello")) -- 5
 - `ffi.nullptr` — the null pointer value.
 - `ffi.VERSION` — the FFI backend version string.
 
-This calls arbitrary native code by design; treat declarations and inputs as trusted. In the
-browser build the module loads but its calls return a clear error.
+This calls arbitrary native code by design. Treat declarations and inputs as trusted. In the browser build the module loads but its calls return a clear error.
 
 ## Examples
 

@@ -46,8 +46,10 @@ jobs:
           key: cpm-linux-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt') }}
           restore-keys: cpm-linux-
 
+      # the strictest platform gate compiles the engine's own sources with warnings as errors, since third-party
+      # headers arrive through CPM as system includes and cannot drown the signal
       - name: Configure
-        run: cmake -B build/release -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        run: cmake -B build/release -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DVARN_WARNINGS_AS_ERRORS=ON
 
       - name: Build
         run: cmake --build build/release --config ${{ env.BUILD_TYPE }} -j$(nproc)

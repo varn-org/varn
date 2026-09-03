@@ -3,7 +3,7 @@
 A standalone XML module that converts between XML text and a Lua node model.
 
 - `xml.encode(node [, options])` → XML text from a node table. Alias: `xml.stringify`.
-  - `options.pretty = true` indents with two spaces; `options.indent = N` indents with `N` spaces.
+  - `options.pretty = true` indents with two spaces. `options.indent = N` indents with `N` spaces.
 - `xml.decode(text)` → the root node table. Alias: `xml.parse`. Raises on invalid input.
 
 The node model round-trips losslessly:
@@ -17,8 +17,7 @@ The node model round-trips losslessly:
 }
 ```
 
-Element names are sanitized and text is escaped on encode. The parser does not load
-external entities or expand DTD entities, and node conversion is depth-capped.
+Element names are sanitized and text is escaped on encode. The parser does not load external entities or expand DTD entities, and node conversion is depth-capped.
 
 ## Examples
 

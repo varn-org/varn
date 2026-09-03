@@ -58,17 +58,14 @@ Releases carry these alongside the plain archives, so nobody has to build to get
 
 ## ⚙️ Backends
 
-Each module picks an implementation at configure time. Pass overrides through `build` with
-`-D`, for example `python3 varn.py build -D VARN_LOG_DRIVER=STDOUT -D VARN_ENABLE_TLS=OFF`.
-The `DUMMY` backend keeps the module loadable but makes its calls return a clear
-"not available" error, which is what the browser and reduced platforms use.
+Each module picks an implementation at configure time. Pass overrides through `build` with `-D`, for example `python3 varn.py build -D VARN_LOG_DRIVER=STDOUT -D VARN_ENABLE_TLS=OFF`. The `DUMMY` backend keeps the module loadable but makes its calls return a clear "not available" error, which is what the browser and reduced platforms use.
 
 | Option | Values (default first) | Selects |
 |--------|------------------------|---------|
 | `VARN_HTTP_SERVER_DRIVER` | `POCO`, `DUMMY` | web server transport |
 | `VARN_HTTP_CLIENT_DRIVER` | `POCO`, `APPLE`, `ANDROID`, `EMSCRIPTEN_FETCH`, `DUMMY` | http client transport (`APPLE` and `ANDROID` are selected automatically by their targets and are described under [Platform networking](#-platform-networking)) |
 | `VARN_SOCKET_DRIVER` | `POCO`, `DUMMY` | tcp and udp sockets |
-| `VARN_CRYPTO_DRIVER` | `OPENSSL`, `PORTABLE`, `DUMMY` | crypto primitives (`PORTABLE` is dependency-free and offers digest/hmac/random/uuid only; it backs the browser build) |
+| `VARN_CRYPTO_DRIVER` | `OPENSSL`, `PORTABLE`, `DUMMY` | crypto primitives (`PORTABLE` is dependency-free and offers digest/hmac/random/uuid only. It backs the browser build) |
 | `VARN_JSON_DRIVER` | `NLOHMANN`, `DUMMY` | json serializer |
 | `VARN_XML_DRIVER` | `PUGIXML`, `DUMMY` | xml serializer |
 | `VARN_LOG_DRIVER` | `SPDLOG`, `STDOUT`, `DUMMY` | log backend |
@@ -79,19 +76,14 @@ The `DUMMY` backend keeps the module loadable but makes its calls return a clear
 
 ## 📱 Platform networking
 
-On the mobile targets the http client runs on the operating system's own networking stack instead of a
-transport bundled with the engine, so an application steers it the way it steers any other library it uses.
-Both drivers are selected by their target and need no configuration.
+On the mobile targets the HTTP client runs on the operating system's own networking stack instead of a transport bundled with the engine, so an application steers it the way it steers any other library it uses. Both drivers are selected by their target and need no configuration.
 
 | Target | Driver | Stack | Steered by |
 |--------|--------|-------|------------|
 | `apple` | `APPLE` | `NSURLSession` | `Info.plist` — App Transport Security, exception domains, the minimum TLS version |
 | `android` | `ANDROID` | `HttpURLConnection` | `network_security_config.xml` — trust anchors, certificate pinning, the cleartext policy |
 
-The trust store, the system proxy and HTTP/2 come from the platform on both, so a device profile installed by
-an MDM or a user is honoured without the engine shipping a certificate bundle of its own. The Lua API does not
-change: `require("http")` behaves the same on every target, and a redirect is still handed to the caller rather
-than followed, which is what every other transport the engine ships does.
+The trust store, the system proxy and HTTP/2 come from the platform on both, so a device profile installed by an MDM or a user is honoured without the engine shipping a certificate bundle of its own. The Lua API does not change. `require("http")` behaves the same on every target, and a redirect is still handed to the caller rather than followed, which is what every other transport the engine ships does.
 
 ## 🌍 Browser demo
 

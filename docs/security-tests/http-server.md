@@ -10,8 +10,8 @@
 | HTTP-004 | Algorithm confusion ES256→HS256 | CWE-347 | EC public key used as HMAC key |
 | HTTP-005 | Algorithm downgrade HS512→HS256 | CWE-347 | swap to a weaker accepted alg |
 | HTTP-006 | Empty signature, valid alg | CWE-347 | strip the signature but keep `alg:HS256` |
-| HTTP-007 | Signature truncation | CWE-347 | drop bytes from the MAC; check rejects |
-| HTTP-008 | Signature byte-flip | CWE-345 | flip one MAC bit; must reject |
+| HTTP-007 | Signature truncation | CWE-347 | drop bytes from the MAC. Check rejects |
+| HTTP-008 | Signature byte-flip | CWE-345 | flip one MAC bit. Must reject |
 | HTTP-009 | Payload tamper (role/sub) | CWE-345 | edit claims without re-signing |
 | HTTP-010 | Weak secret brute force | CWE-326 | short/dictionary HMAC secret cracked offline |
 | HTTP-011 | Empty secret accepted | CWE-347 | verifying with `""` must never succeed |
@@ -162,7 +162,7 @@
 | HTTP-126 | Conditional bypass | RFC 9110 | crafted `If-*` returns wrong 200/304 |
 | HTTP-127 | Directory listing enabled | CWE-548 | listing leaks file inventory |
 | HTTP-128 | Case-insensitive FS bypass | CWE-178 | `INDEX.HTML` vs blocked `index.html` |
-| HTTP-129 | Trailing-dot/space FS bypass | CWE-289 | `secret.` / `secret ` map to the same file |
+| HTTP-129 | Trailing-dot/space FS bypass | CWE-289 | `secret. ` / `secret ` map to the same file |
 
 ### Body parsing & DoS
 
@@ -300,7 +300,7 @@
 | HTTP-219 | Spring path-pattern bypass | CWE-22 | `..;/` matrix-segment traversal |
 | HTTP-220 | Encoded-slash in path | CWE-22 | `%2f` decoded after authz |
 | HTTP-221 | Semicolon path param (Tomcat) | CWE-20 | `;jsessionid` segment confusion |
-| HTTP-222 | Trailing-dot host/path (Windows) | CWE-289 | `index.jsp.` source disclosure |
+| HTTP-222 | Trailing-dot host/path (Windows) | CWE-289 | `index.jsp. ` source disclosure |
 
 ### Auth / session / JWT (documented)
 

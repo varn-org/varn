@@ -1,7 +1,6 @@
 # 📁 fs
 
-Filesystem access — read and write whole files, stream large ones through handles, inspect and list
-paths, and create scratch directories. Reads and writes run off the event loop and return promises.
+Filesystem access — read and write whole files, stream large ones through handles, inspect and list paths, and create scratch directories. Reads and writes run off the event loop and return promises.
 
 ```lua
 local async = require("async")
@@ -18,7 +17,7 @@ end)
 | Function | What it does |
 |---|---|
 | `fs.readFile(path)` | Promise resolving to the whole file contents (binary-safe), with no artificial size cap. |
-| `fs.writeFile(path, content)` | Promise resolving to `"ok"`; replaces any existing content. |
+| `fs.writeFile(path, content)` | Promise resolving to `"ok"`. Replaces any existing content. |
 | `fs.exists(path)` | Boolean, checked synchronously. |
 | `fs.open(path, mode)` | Promise resolving to a streaming file handle. `mode` is one of `r`, `w`, `a`, `r+`, `w+`, `a+`. |
 | `handle:read(maxBytes)` | Promise resolving to up to `maxBytes` bytes (binary-safe), or `""` at end of file. |
@@ -27,10 +26,10 @@ end)
 | `fs.stat(path)` | Promise resolving to `{size, mtime, isDir, isFile, isSymlink}`, or rejecting if the path is missing. |
 | `fs.readdir(path)` | Promise resolving to an array of entry names (just the names, not full paths). |
 | `fs.rename(from, to)` | Promise resolving to `"ok"`. |
-| `fs.copy(from, to)` | Promise resolving to `"ok"`; overwrites the destination if it already exists. |
-| `fs.append(path, data)` | Promise resolving to `"ok"`; binary append, creating parent directories as needed. |
-| `fs.mkdir(path)` | Promise resolving to `"ok"`; creates the directory and any missing parents. |
-| `fs.removeRecursive(path)` | Promise resolving to `"ok"`; removes a file or a directory tree. |
+| `fs.copy(from, to)` | Promise resolving to `"ok"`. Overwrites the destination if it already exists. |
+| `fs.append(path, data)` | Promise resolving to `"ok"`. Binary append, creating parent directories as needed. |
+| `fs.mkdir(path)` | Promise resolving to `"ok"`. Creates the directory and any missing parents. |
+| `fs.removeRecursive(path)` | Promise resolving to `"ok"`. Removes a file or a directory tree. |
 | `fs.mkdtemp(prefix)` | Promise resolving to the path of a freshly created unique temporary directory whose name starts with `prefix`. |
 
 ## Reference, examples, and tests

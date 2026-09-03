@@ -1,12 +1,8 @@
 # Varn Security Vulnerability & Test Catalog
 
-An exhaustive, per-module catalog of security tests — bugs, pentest cases, OOM, races,
-overflows, injection, fuzzing, and every known attack class (common and rare). Each module
-carries **100+ test cases** so the whole battery can be run against Varn on every change.
-It enumerates *what to attack* and *how it is triggered*; no remediation state is tracked.
+An exhaustive, per-module catalog of security tests — bugs, pentest cases, OOM, races, overflows, injection, fuzzing, and every known attack class (common and rare). Each module carries **100+ test cases** so the whole battery can be run against Varn on every change. It enumerates *what to attack* and *how it is triggered*. No remediation state is tracked.
 
-Each module has its own page under [security-tests/](security-tests/). Start with the
-cross-cutting baseline, then run each module's page plus those shared rows.
+Each module has its own page under [security-tests/](security-tests/). Start with the cross-cutting baseline, then run each module's page plus those shared rows.
 
 ## Modules
 
@@ -27,8 +23,7 @@ cross-cutting baseline, then run each module's page plus those shared rows.
 | [log](security-tests/log.md) | 200 | log/CRLF injection, pipeline (Log4Shell-class), terminal escapes, format string, disclosure, DoS |
 | [platform](security-tests/platform.md) | 200 | info disclosure/fingerprinting, path building, arg validation, trust/supply-chain |
 
-Total: **3885** test cases. Modules with a small attack surface (json, async, log, platform) stay at a
-curated 200 to avoid filler; the rest are expanded to 300 with genuinely distinct, documented cases.
+Total: **3885** test cases. Modules with a small attack surface (json, async, log, platform) stay at a curated 200 to avoid filler. The rest are expanded to 300 with genuinely distinct, documented cases.
 
 ## Entry schema
 
@@ -53,17 +48,14 @@ Exploit  how it is triggered / the failure point / the input to send
 ## How to run
 
 - Per-module Lua tests: `./build/bin/varn modules/<m>/lua/tests/<m>_test.lua`.
-- HTTP end-to-end: start a server script with `./build/bin/varn <script>.lua &`, then drive
-  it with `curl` (the embedded `http.client` does not expose response headers/cookies — use
-  `curl -c/-b jar -D -`).
+- HTTP end-to-end: start a server script with `./build/bin/varn <script>.lua &`, then drive it with `curl` (the embedded `http.client` does not expose response headers/cookies — use `curl -c/-b jar -D -`).
 - Native memory/UB: build and run under AddressSanitizer / UndefinedBehaviorSanitizer.
 - Parsers (json, xml, zip, ffi cdef, http): run structured + dumb fuzzers over the entry points.
 - Concurrency: stress with many parallel requests/connections and ThreadSanitizer.
 
 ## Frameworks covered
 
-OWASP WSTG v4.2, OWASP ASVS, OWASP API Security Top 10 (2023), CWE Top 25 + memory-safety
-classes (CWE-1399), SANS/CERT C++ guidance, and the per-domain attack literature.
+OWASP WSTG v4.2, OWASP ASVS, OWASP API Security Top 10 (2023), CWE Top 25 + memory-safety classes (CWE-1399), SANS/CERT C++ guidance, and the per-domain attack literature.
 
 ## References
 
@@ -75,5 +67,4 @@ classes (CWE-1399), SANS/CERT C++ guidance, and the per-domain attack literature
 - PayloadsAllTheThings — Directory Traversal, CORS, SSRF, JWT, XXE.
 - CWE Top 25 + CWE-1399 (memory safety) — https://cwe.mitre.org/
 - HackTricks — JWT, HTTP request smuggling, SSRF, Lua sandbox escape, zip slip.
-- RFCs — 9110/9112 (HTTP), 6265bis (Cookies), 7519/8725 (JWT/BCP), 6266 (Content-Disposition),
-  5987 (header encoding), 7233 (Range), 9113 (HTTP/2), 4231 (HMAC test vectors).
+- RFCs — 9110/9112 (HTTP), 6265bis (Cookies), 7519/8725 (JWT/BCP), 6266 (Content-Disposition), 5987 (header encoding), 7233 (Range), 9113 (HTTP/2), 4231 (HMAC test vectors).

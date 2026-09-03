@@ -2,6 +2,7 @@
 
 # lua is the engine and is always vendored
 CPMAddPackage(
+    SYSTEM YES
     NAME lua
     VERSION 5.5.0
     GITHUB_REPOSITORY lua/lua
@@ -52,6 +53,7 @@ endif()
 # zlib resolves before poco so poco reuses this ZLIB::ZLIB target and libzip later picks it up through zlib-cmake's FindZLIB override
 if(VARN_NEEDS_ZIP OR VARN_NEEDS_ZLIB)
     CPMAddPackage(
+    SYSTEM YES
         NAME zlib-cmake
         URL https://github.com/jimmy-park/zlib-cmake/archive/main.tar.gz
     )
@@ -82,6 +84,7 @@ if(VARN_NEEDS_POCO)
     endif()
 
     CPMAddPackage(
+    SYSTEM YES
         NAME Poco
         VERSION 1.15.3
         GITHUB_REPOSITORY pocoproject/poco
@@ -121,6 +124,7 @@ endif()
 # libuv is the cross-platform event loop poller (epoll/kqueue/iocp) the runtime waits on natively
 if(VARN_NEEDS_LIBUV)
     CPMAddPackage(
+    SYSTEM YES
         NAME libuv
         VERSION 1.49.2
         GITHUB_REPOSITORY libuv/libuv
@@ -135,6 +139,7 @@ endif()
 # llhttp is the http request parser
 if(VARN_NEEDS_LLHTTP)
     CPMAddPackage(
+    SYSTEM YES
         NAME llhttp
         VERSION 9.2.1
         GITHUB_REPOSITORY nodejs/llhttp
@@ -148,6 +153,7 @@ endif()
 # spdlog backs the log SPDLOG driver
 if(VARN_NEEDS_SPDLOG)
     CPMAddPackage(
+    SYSTEM YES
         NAME spdlog
         VERSION 1.17.0
         GITHUB_REPOSITORY gabime/spdlog
@@ -161,6 +167,7 @@ endif()
 # nlohmann_json backs the json NLOHMANN driver
 if(VARN_NEEDS_NLOHMANN)
     CPMAddPackage(
+    SYSTEM YES
         NAME nlohmann_json
         VERSION 3.11.3
         GITHUB_REPOSITORY nlohmann/json
@@ -171,6 +178,7 @@ endif()
 # date.h backs the datetime module with calendar arithmetic and iso-8601 parsing and formatting
 if(VARN_NEEDS_DATE)
     CPMAddPackage(
+    SYSTEM YES
         NAME date
         VERSION 3.0.4
         GITHUB_REPOSITORY HowardHinnant/date
@@ -184,6 +192,7 @@ endif()
 # pugixml backs the xml PUGIXML driver
 if(VARN_NEEDS_PUGIXML)
     CPMAddPackage(
+    SYSTEM YES
         NAME pugixml
         VERSION 1.14
         GITHUB_REPOSITORY zeux/pugixml
@@ -204,6 +213,7 @@ if(VARN_NEEDS_ZIP)
     endif()
 
     CPMAddPackage(
+    SYSTEM YES
         NAME libzip
         VERSION 1.10.1
         GITHUB_REPOSITORY nih-at/libzip

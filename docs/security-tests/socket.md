@@ -1,7 +1,6 @@
 # 🔌 socket
 
-`socket.tcp.connect/listen/accept/send/receive/close`,
-`socket.udp.bind/sendTo/recvFrom/close`. All async (promises).
+`socket.tcp.connect/listen/accept/send/receive/close`, `socket.udp.bind/sendTo/recvFrom/close`. All async (promises).
 
 ### Address & connection (SSRF-class)
 

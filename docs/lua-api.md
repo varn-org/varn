@@ -1,8 +1,6 @@
 # 📖 Lua API reference
 
-Every built-in module is available with `require`. Each module has its own page below, with
-its full API and every runnable example. The examples also live next to each module under
-`modules/<module>/lua/examples/` and run from the project root.
+Every built-in module is available with `require`. Each module has its own page below, with its full API and every runnable example. The examples also live next to each module under `modules/<module>/lua/examples/` and run from the project root.
 
 ## Modules
 
@@ -24,5 +22,4 @@ its full API and every runnable example. The examples also live next to each mod
 
 ## The `arg` global
 
-The host sets `arg` to the command-line arguments (the script path and its parameters). In
-the browser build it is usually empty.
+The host sets `arg` to the command-line arguments (the script path and its parameters). In the browser build it is usually empty.

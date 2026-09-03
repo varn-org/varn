@@ -1,7 +1,6 @@
 # 🔐 crypto
 
-`crypto.digest(algo, data, format?)`, `crypto.hmac(algo, key, data, format?)`,
-`crypto.randomBytes(n)` (OpenSSL-backed).
+`crypto.digest(algo, data, format?)`, `crypto.hmac(algo, key, data, format?)`, `crypto.randomBytes(n)` (OpenSSL-backed).
 
 ### Algorithm handling
 
@@ -27,8 +26,8 @@
 | CRY-013 | Empty HMAC key | CWE-20 | zero-length key handling |
 | CRY-014 | NUL in data | CWE-626 | binary data hashed fully (length-aware) |
 | CRY-015 | NUL in key | CWE-626 | key bytes after NUL still used |
-| CRY-016 | Huge data (no cap) | CWE-400 | large input is hashed; no artificial cap (trusted local code, like Node) |
-| CRY-017 | Huge key (no cap) | CWE-400 | large key is accepted; no artificial cap |
+| CRY-016 | Huge data (no cap) | CWE-400 | large input is hashed. No artificial cap (trusted local code, like Node) |
+| CRY-017 | Huge key (no cap) | CWE-400 | large key is accepted. No artificial cap |
 | CRY-018 | Data at exactly the cap | CWE-193 | boundary at the size limit |
 | CRY-019 | Non-string data/key | CWE-20 | number/table coercion |
 | CRY-020 | High-byte / invalid-UTF8 input | CWE-176 | raw bytes hashed verbatim |
@@ -54,7 +53,7 @@
 | CRY-030 | RNG failure handling | CWE-703 | a `RAND_bytes` failure throws, never returns weak bytes |
 | CRY-031 | Count zero | CWE-20 | `randomBytes(0)` returns empty |
 | CRY-032 | Count negative | CWE-20 | negative count rejected |
-| CRY-033 | Count upper bound | CWE-400 | no artificial cap; only a count past the int limit is rejected |
+| CRY-033 | Count upper bound | CWE-400 | no artificial cap. Only a count past the int limit is rejected |
 | CRY-034 | Count non-integer | CWE-20 | float/string count handling |
 | CRY-035 | Distribution/bias | CWE-330 | output passes basic randomness checks |
 | CRY-036 | Repeatability across forks | CWE-336 | RNG reseeds after fork |
@@ -241,13 +240,13 @@
 | CRY-168 | Unpatched provider CVE | CWE-1395 | stale crypto backend |
 | CRY-169 | Algorithm name injection | CWE-20 | crafted name to `EVP_*_fetch` |
 | CRY-170 | NUL in algorithm name | CWE-626 | name truncation |
-| CRY-171 | Large input (no cap) | CWE-193 | multi-megabyte input hashes fine; no artificial cap |
-| CRY-172 | Large key (no cap) | CWE-193 | large key accepted; no artificial cap |
+| CRY-171 | Large input (no cap) | CWE-193 | multi-megabyte input hashes fine. No artificial cap |
+| CRY-172 | Large key (no cap) | CWE-193 | large key accepted. No artificial cap |
 | CRY-173 | randomBytes large count | CWE-400 | a large in-range count is honored (no million-byte cap) |
 | CRY-174 | Negative/zero count | CWE-20 | `randomBytes(-1)` rejected, `(0)` returns empty |
 | CRY-175 | Non-integer count | CWE-20 | float/string count |
 | CRY-176 | Integer overflow in count cast | CWE-190 | a count past the int limit is rejected, never wrapped |
-| CRY-177 | Large HMAC key (no cap) | CWE-400 | large key accepted; no artificial cap |
+| CRY-177 | Large HMAC key (no cap) | CWE-400 | large key accepted. No artificial cap |
 | CRY-178 | XOF length request | CWE-20 | SHAKE variable output |
 | CRY-179 | Unknown digest name | CWE-20 | clean error, no crash |
 | CRY-180 | Empty algorithm | CWE-20 | rejected |
@@ -370,7 +369,7 @@
 | CRY-263 | XOF length request | CWE-20 | SHAKE variable output |
 | CRY-264 | HMAC key > block hashed first | CWE-20 | over-block key correctness |
 | CRY-265 | HMAC key shorter than output | CWE-326 | weak key length |
-| CRY-266 | Large input (no cap) | CWE-193 | large input hashes fine; no artificial cap |
+| CRY-266 | Large input (no cap) | CWE-193 | large input hashes fine. No artificial cap |
 | CRY-267 | randomBytes large count | CWE-193 | a 1,000,000-byte request is honored (no artificial cap) |
 | CRY-268 | Count integer overflow | CWE-190 | huge count wraps |
 | CRY-269 | Streaming vs one-shot parity | CWE-697 | chunked == single-buffer |

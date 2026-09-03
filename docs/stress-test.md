@@ -17,16 +17,9 @@ Varn serves about **2.5× the requests of Node per core** (and ~2.5× Python) an
 
 ## 🗄️ With a database and cache (MySQL + Redis)
 
-A second, more real-world scenario adds two routes: `/db` reads a random row from MySQL and `/cache`
-runs a Redis `INCR`, each over a pooled, non-blocking connection. The reproducible stack is in
-[bench/](../bench/): `bash bench/docker-bench.sh` brings up MySQL (a seeded 10k-row table) and Redis and
-drives Varn, Node (`mysql2`/`ioredis`) and Python (`aiomysql`/`redis.asyncio`) on one network.
+A second, more real-world scenario adds two routes: `/db` reads a random row from MySQL and `/cache` runs a Redis `INCR`, each over a pooled, non-blocking connection. The reproducible stack is in [bench/](../bench/): `bash bench/docker-bench.sh` brings up MySQL (a seeded 10k-row table) and Redis and drives Varn, Node (`mysql2`/`ioredis`) and Python (`aiomysql`/`redis.asyncio`) on one network.
 
-Varn reaches MySQL through a **native protocol client written over its async socket** — no
-`libmysqlclient` — authenticating with `mysql_native_password` and running `COM_QUERY`. Both MySQL and
-Redis go through a shared connection [`pool`](https://github.com/varn-org/components/blob/main/pool) that hands a free connection to each
-request and blocks the rest on an event-driven wait until one is released, so one process keeps many
-queries in flight. This mirrors the async, pooled model the Node and Python drivers use.
+Varn reaches MySQL through a **native protocol client written over its async socket** — no `libmysqlclient` — authenticating with `mysql_native_password` and running `COM_QUERY`. Both MySQL and Redis go through a shared connection [`pool`](https://github.com/varn-org/components/blob/main/pool) that hands a free connection to each request and blocks the rest on an event-driven wait until one is released, so one process keeps many queries in flight. This mirrors the async, pooled model the Node and Python drivers use.
 
 Measured on Linux (one process each, `wrk -t4 -c256`), requests per second:
 
@@ -37,12 +30,7 @@ Measured on Linux (one process each, `wrk -t4 -c256`), requests per second:
 | db (MySQL `SELECT`) | **13.5k** | 10.6k | 10.7k |
 | cache (Redis `INCR`) | **44.4k** | 35.0k | 15.7k |
 
-Varn **leads every route**. On `/db` it reads MySQL through a wire-protocol client that stays
-non-blocking and pooled on the C++ event loop; on `/cache` the redis client **auto-pipelines**
-concurrent commands onto one multiplexed connection (the [`pipeline = true`](https://github.com/varn-org/components/blob/main/redis) mode),
-so it edges out `ioredis`. Its **tail latency is in another class**: `/db` p99 is 26 ms versus Node's
-421 ms, and `/cache` p99 is 8 ms versus Node's 72 ms and Python's 449 ms, because no GC ever pauses the
-event loop. Reproduce all of this with `python3 varn.py bench`.
+Varn **leads every route**. On `/db` it reads MySQL through a wire-protocol client that stays non-blocking and pooled on the C++ event loop. On `/cache` the redis client **auto-pipelines** concurrent commands onto one multiplexed connection (the [`pipeline = true`](https://github.com/varn-org/components/blob/main/redis) mode), so it edges out `ioredis`. Its **tail latency is in another class**: `/db` p99 is 26 ms versus Node's 421 ms, and `/cache` p99 is 8 ms versus Node's 72 ms and Python's 449 ms, because no GC ever pauses the event loop. Reproduce all of this with `python3 varn.py bench`.
 
 > Run the bench on a real network, not a Docker-Desktop port-forward: the host→container proxy on
 > macOS/Windows adds milliseconds per round trip and disproportionately penalizes whichever client does
@@ -152,15 +140,13 @@ A `THRESHOLD` line marked failed means the server crossed a budget defined in `o
 
 ## ⚙️ Tune the server for load
 
-The server runs one event loop per process, so the main scaling knob is the number of
-processes. Set `VARN_WORKERS` to the core count to spread connections across all cores:
+The server runs one event loop per process, so the main scaling knob is the number of processes. Set `VARN_WORKERS` to the core count to spread connections across all cores:
 
 ```bash
 VARN_WORKERS=8 ./build/bin/varn your_server.lua
 ```
 
-`listen` options shape how a single worker absorbs concurrency. Raise them when the test shows
-queuing or rejected connections.
+`listen` options shape how a single worker absorbs concurrency. Raise them when the test shows queuing or rejected connections.
 
 ```lua
 server:listen({
@@ -174,7 +160,7 @@ server:listen({
 
 | Knob | Effect under load |
 |------|-------------------|
-| `VARN_WORKERS` | one process per core; on Linux the kernel load-balances connections across them |
+| `VARN_WORKERS` | one process per core. On Linux the kernel load-balances connections across them |
 | `maxQueued` | longer accept backlog before new connections are refused |
 | `requestTimeoutMs` | bounds how long a slow request stays open |
 | `keepAliveTimeoutSeconds` | closes idle keep-alive and slow-read connections |

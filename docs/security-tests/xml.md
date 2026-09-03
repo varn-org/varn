@@ -1,7 +1,6 @@
 # 🧬 xml
 
-`xml.encode(node [,{pretty,indent}])` / `xml.decode(text)` and aliases. Node model
-`{name, attributes, children, text}` over pugixml.
+`xml.encode(node [,{pretty,indent}])` / `xml.decode(text)` and aliases. Node model `{name, attributes, children, text}` over pugixml.
 
 ### XXE & DTD / entities
 

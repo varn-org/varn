@@ -1,7 +1,6 @@
 # 🧩 ffi
 
-`ffi.cdef[[...]]`, `ffi.C.<name>(...)`, `ffi.nullptr`. Calls arbitrary native code by
-design; tests target the declaration parser and the argument/return marshalling layer.
+`ffi.cdef[[...]]`, `ffi.C.<name>(...)`, `ffi.nullptr`. Calls arbitrary native code by design. Tests target the declaration parser and the argument/return marshalling layer.
 
 ### Declaration parser (`cdef`)
 

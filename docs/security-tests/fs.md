@@ -1,7 +1,6 @@
 # 📁 fs
 
-`fs.readFile(path)`, `fs.writeFile(path, content)`, `fs.exists(path)`. A general,
-non-sandboxed filesystem API; path confinement is the caller's responsibility.
+`fs.readFile(path)`, `fs.writeFile(path, content)`, `fs.exists(path)`. A general, non-sandboxed filesystem API. Path confinement is the caller's responsibility.
 
 ### Path traversal & injection
 
@@ -15,7 +14,7 @@ non-sandboxed filesystem API; path confinement is the caller's responsibility.
 | FS-006 | Overlong UTF-8 dots | CWE-176 | overlong `..` encodings |
 | FS-007 | Nested `....//` | CWE-22 | single-strip leaves `../` |
 | FS-008 | NUL truncation | CWE-626 | `secret\0.txt` truncates |
-| FS-009 | Trailing dot/space | CWE-289 | `file.`/`file ` map to the same target |
+| FS-009 | Trailing dot/space | CWE-289 | `file. `/`file ` map to the same target |
 | FS-010 | Case-insensitive bypass | CWE-178 | `Secret` vs blocked `secret` |
 | FS-011 | Unicode normalization | CWE-178 | NFC/NFD distinct paths to one file |
 | FS-012 | Reserved device names | CWE-67 | `CON`, `NUL`, `AUX` on Windows |
@@ -109,7 +108,7 @@ non-sandboxed filesystem API; path confinement is the caller's responsibility.
 | FS-075 | Filename length limit | CWE-400 | name beyond `NAME_MAX` |
 | FS-076 | Special chars in name | CWE-20 | newline/`*`/`?` in filename |
 | FS-077 | Hidden-file handling | CWE-538 | dotfiles read/written without restriction (documented) |
-| FS-078 | Atomic-write expectation | CWE-362 | write not atomic; partial on crash |
+| FS-078 | Atomic-write expectation | CWE-362 | write not atomic. Partial on crash |
 | FS-079 | Locale-dependent path | CWE-697 | path interpreted per locale |
 | FS-080 | Read of a growing log | CWE-367 | size-then-read mismatch |
 
@@ -152,7 +151,7 @@ non-sandboxed filesystem API; path confinement is the caller's responsibility.
 | FS-104 | Windows 8.3 short name | CWE-66 | `SECRET~1.TXT` bypasses a name check |
 | FS-105 | Windows alternate data stream | CWE-69 | `file.txt::$DATA` reveals source |
 | FS-106 | Windows reserved device | CWE-67 | `CON`/`PRN`/`NUL` path |
-| FS-107 | Windows trailing dot/space | CWE-289 | `secret.txt.` opens `secret.txt` |
+| FS-107 | Windows trailing dot/space | CWE-289 | `secret.txt. ` opens `secret.txt` |
 | FS-108 | UNC path injection | CWE-22 | `\\attacker\share` triggers SMB auth leak |
 | FS-109 | Drive-relative path | CWE-22 | `C:file` relative to the drive cwd |
 | FS-110 | Case-insensitive FS bypass | CWE-178 | `Secret` vs blocked `secret` |
@@ -216,7 +215,7 @@ non-sandboxed filesystem API; path confinement is the caller's responsibility.
 
 | ID | Name | Class | Exploit |
 |----|------|-------|---------|
-| FS-151 | Large file read (no cap) | CWE-400 | reads any size, like Node; bounded only by memory (trusted local code) |
+| FS-151 | Large file read (no cap) | CWE-400 | reads any size, like Node. Bounded only by memory (trusted local code) |
 | FS-152 | File grows during read | CWE-367 | size-then-read mismatch |
 | FS-153 | Disk fill via write | CWE-400 | ENOSPC handling |
 | FS-154 | Inode exhaustion | CWE-400 | many tiny files |
@@ -287,7 +286,7 @@ non-sandboxed filesystem API; path confinement is the caller's responsibility.
 |----|------|-------|---------|
 | FS-201 | Windows `\\?\` long-path prefix | CWE-22 | extended-length path bypass |
 | FS-202 | Windows `\\.\` device namespace | CWE-67 | device path access |
-| FS-203 | Windows trailing-dot strip | CWE-289 | `secret.txt.` opens the file |
+| FS-203 | Windows trailing-dot strip | CWE-289 | `secret.txt. ` opens the file |
 | FS-204 | Windows space-strip | CWE-289 | `secret.txt ` opens the file |
 | FS-205 | Windows colon ADS | CWE-69 | `file:stream` data stream |
 | FS-206 | Windows short-name 8.3 | CWE-66 | `SECRET~1` aliasing |
@@ -351,7 +350,7 @@ non-sandboxed filesystem API; path confinement is the caller's responsibility.
 | FS-249 | Missing fsync durability | CWE-662 | data loss |
 | FS-250 | Backup/temp left behind | CWE-459 | leftover with secrets |
 | FS-251 | Predictable temp name | CWE-377 | guessable temp |
-| FS-252 | Large file read boundary | CWE-193 | a large file reads fully; no artificial size cap |
+| FS-252 | Large file read boundary | CWE-193 | a large file reads fully. No artificial size cap |
 | FS-253 | File grows during read | CWE-367 | size-then-read mismatch |
 | FS-254 | Disk fill via write | CWE-400 | ENOSPC handling |
 | FS-255 | Inode exhaustion | CWE-400 | many tiny files |

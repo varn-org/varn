@@ -5,9 +5,7 @@ Host and build information.
 - `platform.os()` → e.g. `"linux"`, `"macos"`, `"windows"`, `"ios"`, `"android"`, `"wasm"`.
 - `platform.arch()` → e.g. `"arm64"`, `"x86_64"`, `"wasm32"`.
 - `platform.hostVersion()` → the Varn version string, for example `"0.0.1"`.
-- `platform.version` → the same version already split, as `{ major, minor, patch, string }`. The
-  three numbers are integers, so a component can gate on the runtime it needs without parsing the
-  string and without inventing its own comparison:
+- `platform.version` → the same version already split, as `{ major, minor, patch, string }`. The three numbers are integers, so a component can gate on the runtime it needs without parsing the string and without inventing its own comparison:
 
   ```lua
   local v = require("platform").version

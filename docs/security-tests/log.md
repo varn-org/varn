@@ -1,7 +1,6 @@
 # 📝 log
 
-`log.debug/info/warn/error(...)` — variadic, `tostring`-joined by tabs, one line per call,
-written through a backend (stdout / spdlog / dummy).
+`log.debug/info/warn/error(...)` — variadic, `tostring`-joined by tabs, one line per call, written through a backend (stdout / spdlog / dummy).
 
 ### Log injection (forging entries)
 

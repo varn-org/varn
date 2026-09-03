@@ -183,7 +183,7 @@
 | CLI-121 | IPv6 scoped/embedded IPv4 | CWE-918 | `[::ffff:7f00:1]` |
 | CLI-122 | IDNA/punycode host | CWE-918 | unicode host normalizes internally |
 | CLI-123 | Enclosing-bracket trick | CWE-918 | malformed `[host]` parsing |
-| CLI-124 | Trailing-dot FQDN | CWE-918 | `localhost.` bypasses an allowlist |
+| CLI-124 | Trailing-dot FQDN | CWE-918 | `localhost. ` bypasses an allowlist |
 
 ### Redirect / DNS (documented)
 
@@ -325,7 +325,7 @@
 | CLI-219 | Backslash path/host split | CWE-918 | `http://good\@evil` |
 | CLI-220 | Fragment-hidden host | CWE-918 | `http://evil#@good` |
 | CLI-221 | Userinfo with percent-encoding | CWE-918 | `%40` decodes to `@` |
-| CLI-222 | Trailing-dot allowlist bypass | CWE-918 | `internal.host.` |
+| CLI-222 | Trailing-dot allowlist bypass | CWE-918 | `internal.host. ` |
 | CLI-223 | Case-only allowlist bypass | CWE-178 | host case differs from the rule |
 | CLI-224 | Validator vs client URL parse | CWE-436 | the two disagree on the host |
 | CLI-225 | Double-encoded host | CWE-918 | `%2569` style |

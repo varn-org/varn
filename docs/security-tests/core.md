@@ -1,7 +1,6 @@
 # 🧠 core / runtime
 
-The Lua engine, event loop, task pool, runtime lifecycle, native-module registry, and the
-host entry point.
+The Lua engine, event loop, task pool, runtime lifecycle, native-module registry, and the host entry point.
 
 ### Lua sandbox & code execution
 

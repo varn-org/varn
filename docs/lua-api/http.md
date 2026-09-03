@@ -1,8 +1,6 @@
 # 🌐 http
 
-An in-process HTTP/1.1 server (with a higher-level app framework), an HTTP client, and
-WebSocket support. JSON and XML response helpers are available when those
-modules are built.
+An in-process HTTP/1.1 server (with a higher-level app framework), an HTTP client, and WebSocket support. JSON and XML response helpers are available when those modules are built.
 
 ## Server
 
@@ -16,8 +14,7 @@ end):listen(3000)
 
 `http.createServer(handler)` returns a builder. The handler runs once per request with `(req, res)`.
 
-`req` fields: `host`, `method`, `path`, `target`, `queryString`, `body`, `remoteAddress`,
-`headers`, `cookies`, and `query` (the parsed query string as a table).
+`req` fields: `host`, `method`, `path`, `target`, `queryString`, `body`, `remoteAddress`, `headers`, `cookies`, and `query` (the parsed query string as a table).
 
 `res` methods:
 
@@ -29,150 +26,69 @@ end):listen(3000)
 
 If the handler returns without ending the response, the server sends `204 No Content`.
 
-`builder:listen(port)` or `builder:listen(options)` starts the server. The same options
-work for both `http.createServer` and `app:listen`: `host`, `port`, `publicDir`,
-`servePublic`, `directoryListing`, `requestTimeoutMs` (default 30000),
-`keepAliveTimeoutSeconds` (default 30), `maxQueued` (the accept backlog), `compress` (gzip
-responses, default true), `tls`, `certFile`,
-`keyFile`. The environment variables `VARN_PORT`, `VARN_TLS_CERT`, and `VARN_TLS_KEY` override
-the matching options. When `servePublic` is on and `publicDir` is omitted, it defaults to
-`apps/lua/public`.
+`builder:listen(port)` or `builder:listen(options)` starts the server. The same options work for both `http.createServer` and `app:listen`: `host`, `port`, `publicDir`, `servePublic`, `directoryListing`, `requestTimeoutMs` (default 30000), `keepAliveTimeoutSeconds` (default 30), `maxQueued` (the accept backlog), `compress` (gzip responses, default true), `tls`, `certFile`, `keyFile`. The environment variables `VARN_PORT`, `VARN_TLS_CERT`, and `VARN_TLS_KEY` override the matching options. When `servePublic` is on and `publicDir` is omitted, it defaults to `apps/lua/public`.
 
 ## App framework
 
-`http.createApp()` returns an application with routing, route groups, middleware, named
-routes, path constraints, sessions, cookies, body parsing, file responses, WebSockets, and
-built-in security middleware (`http.cors`, `http.securityHeaders`, `http.apiKey`,
-`http.rateLimit`, `http.csrf`, `http.jwtAuth`, `http.requireAuth`, `http.requireRole`, and
-`http.jwt.sign` / `http.jwt.verify`). The full tour is in the `app_full` example below.
+`http.createApp()` returns an application with routing, route groups, middleware, named routes, path constraints, sessions, cookies, body parsing, file responses, WebSockets, and built-in security middleware (`http.cors`, `http.securityHeaders`, `http.apiKey`, `http.rateLimit`, `http.csrf`, `http.jwtAuth`, `http.requireAuth`, `http.requireRole`, and `http.jwt.sign` / `http.jwt.verify`). The full tour is in the `app_full` example below.
 
-The application carries an event bus so a handler can announce something without knowing who reacts
-to it. `app:on(name, handler)` subscribes and `app:emit(name, ...)` publishes, passing every extra
-argument through to each handler in subscription order. Delivery is synchronous and in-process, the
-handler list is copied before any of it runs so a handler may subscribe another one, and a handler
-that raises is logged and skipped rather than failing the request that emitted the event. The bus is
-private to one worker, so a process started with several workers does not share events between them.
+The application carries an event bus so a handler can announce something without knowing who reacts to it. `app:on(name, handler)` subscribes and `app:emit(name, ...)` publishes, passing every extra argument through to each handler in subscription order. Delivery is synchronous and in-process, the handler list is copied before any of it runs so a handler may subscribe another one, and a handler that raises is logged and skipped rather than failing the request that emitted the event. The bus is private to one worker, so a process started with several workers does not share events between them.
 
-`http.rateLimit(opts)` takes `windowMs` (default 60000), `max` requests per window (default 100),
-`trustProxy` to read the client address from `X-Forwarded-For` (default false), and `maxClients`,
-the number of distinct client addresses tracked (default 100000). The store is bounded on purpose:
-one IPv6 client can source from an entire prefix, so once `maxClients` is reached the limiter drops
-expired entries and, if it is still full, starts a fresh window for everyone rather than growing
-without end. Size it to the traffic you expect to serve, not to the traffic you expect to be
-attacked with.
+`http.rateLimit(opts)` takes `windowMs` (default 60000), `max` requests per window (default 100), `trustProxy` to read the client address from `X-Forwarded-For` (default false), and `maxClients`, the number of distinct client addresses tracked (default 100000). The store is bounded on purpose: one IPv6 client can source from an entire prefix, so once `maxClients` is reached the limiter drops expired entries and, if it is still full, starts a fresh window for everyone rather than growing without end. Size it to the traffic you expect to serve, not to the traffic you expect to be attacked with.
 
 ### Context response helpers
 
-Inside a handler `ctx` carries the request as `ctx.req` (equivalently `ctx.request`) plus the
-shorthands `ctx.method`, `ctx.path`, `ctx.params`, `ctx.query` and `ctx.state`, and it ends the
-response through `json`/`xml`/`text`/`html`/`file`/`status`/`header`/`cookie`/`type`/`redirect`/`write`/`send`
-(`finish` is accepted as the same call as `send`, so a handler body reads the same on `createServer`
-and on `createApp`). `ctx:xml(table)` is the XML twin of `ctx:json(table)`, sending
-`application/xml; charset=utf-8`. On top of those:
+Inside a handler `ctx` carries the request as `ctx.req` (equivalently `ctx.request`) plus the shorthands `ctx.method`, `ctx.path`, `ctx.params`, `ctx.query` and `ctx.state`, and it ends the response through `json`/`xml`/`text`/`html`/`file`/`status`/`header`/`cookie`/`type`/`redirect`/`write`/`send` (`finish` is accepted as the same call as `send`, so a handler body reads the same on `createServer` and on `createApp`). `ctx:xml(table)` is the XML twin of `ctx:json(table)`, sending `application/xml; charset=utf-8`. On top of those:
 
-- `ctx:cache(seconds)` or `ctx:cache(opts)` — set `Cache-Control`. A number is shorthand for
-  `public, max-age=<n>`. The options table understands `maxAge`, `sMaxAge`, `private` (default is
-  `public`), `noStore`, `noCache`, and `mustRevalidate`. Returns `ctx` for chaining.
-- `ctx:etag(value)` — set the `ETag` header (a bare value is quoted, a `W/` prefix is kept weak).
-  When the request's `If-None-Match` matches, it answers `304` and ends the response, so guard the
-  rest of the handler with `if ctx.req.headers["If-None-Match"] then return end`.
-- `ctx:file(path, opts?)` — stream a file, with the content type taken from its extension. A path
-  that is not an existing regular file answers `404`, so a directory, a fifo or a device is never
-  streamed. `opts.download = true` sends it as an attachment named after the file, and
-  `opts.download = "name.ext"` names it explicitly; either way the name is encoded per RFC 6266, so a
-  filename cannot break out of the header. **The path is served exactly as given** — this is the
-  explicit escape hatch, not the guarded static handler, so a handler that builds the path from
-  request data must contain it itself. Serving a whole directory belongs to `publicDir`, which
-  resolves and confines every path for you.
-- `ctx:accepts(type1, type2, ...)` — return the best match against the request `Accept` header, or
-  `nil` if none fit. A bare token like `"json"` or `"html"` matches the media subtype; a full type
-  like `"application/json"` matches exactly. A missing or `*/*` Accept header returns the first type.
-- `ctx:sse()` — switch the response to `text/event-stream` with `Cache-Control: no-cache` and return
-  a Server-Sent-Events writer:
-  - `stream:send(data)` — send a default-event message. The payload may hold anything: a line break
-    of any kind (CR, LF or CRLF, all three of which end a line in the protocol) is escaped into its
-    own `data:` field, so text can never break out of the record.
+- `ctx:cache(seconds)` or `ctx:cache(opts)` — set `Cache-Control`. A number is shorthand for `public, max-age=<n>`. The options table understands `maxAge`, `sMaxAge`, `private` (default is `public`), `noStore`, `noCache`, and `mustRevalidate`. Returns `ctx` for chaining.
+- `ctx:etag(value)` — set the `ETag` header (a bare value is quoted, a `W/` prefix is kept weak). When the request's `If-None-Match` matches, it answers `304` and ends the response, so guard the rest of the handler with `if ctx.req.headers["If-None-Match"] then return end`.
+- `ctx:file(path, opts?)` — stream a file, with the content type taken from its extension. A path that is not an existing regular file answers `404`, so a directory, a fifo or a device is never streamed. `opts.download = true` sends it as an attachment named after the file, and `opts.download = "name.ext"` names it explicitly. Either way the name is encoded per RFC 6266, so a filename cannot break out of the header. **The path is served exactly as given** — this is the explicit escape hatch, not the guarded static handler, so a handler that builds the path from request data must contain it itself. Serving a whole directory belongs to `publicDir`, which resolves and confines every path for you.
+- `ctx:accepts(type1, type2, ...)` — return the best match against the request `Accept` header, or `nil` if none fit. A bare token like `"json"` or `"html"` matches the media subtype. A full type like `"application/json"` matches exactly. A missing or `*/*` Accept header returns the first type.
+- `ctx:sse()` — switch the response to `text/event-stream` with `Cache-Control: no-cache` and return a Server-Sent-Events writer:
+  - `stream:send(data)` — send a default-event message. The payload may hold anything: a line break of any kind (CR, LF or CRLF, all three of which end a line in the protocol) is escaped into its own `data:` field, so text can never break out of the record.
   - `stream:send(event, data)` — send a named event.
   - `stream:comment(text)` — send a comment line, the conventional heartbeat that keeps proxies open.
   - `stream:close()` — end the stream.
 
-  An **event name** and a **comment** each occupy a whole line of the stream, so neither may contain a
-  line break — one would let the rest of the value forge `id:`, `retry:` or an entire further event on
-  the client. Passing one raises, the way an invalid header name does, rather than being silently
-  stripped. Payload data has no such restriction, since it is escaped.
+  An **event name** and a **comment** each occupy a whole line of the stream, so neither may contain a line break — one would let the rest of the value forge `id:`, `retry:` or an entire further event on the client. Passing one raises, the way an invalid header name does, rather than being silently stripped. Payload data has no such restriction, since it is escaped.
 
   The writer builds on chunked transfer encoding, so frames flush progressively rather than buffering.
 
 ### Response compression
 
-When the request carries `Accept-Encoding: gzip` and the response body is a compressible type
-(`application/json`, `application/xml`, or any `text/*`) above 1 KB, the server gzips the body and
-sets `Content-Encoding: gzip` plus `Vary: Accept-Encoding`. Already-encoded or tiny bodies are left
-alone. Compression is on by default; pass `compress = false` to `listen` to disable it.
+When the request carries `Accept-Encoding: gzip` and the response body is a compressible type (`application/json`, `application/xml`, or any `text/*`) above 1 KB, the server gzips the body and sets `Content-Encoding: gzip` plus `Vary: Accept-Encoding`. Already-encoded or tiny bodies are left alone. Compression is on by default. Pass `compress = false` to `listen` to disable it.
 
 ### WebSocket broadcast and rooms
 
 Live connections are tracked per app so a handler can reach the others:
 
-- `app:wsBroadcast(path, message)` — send `message` to every open connection on that ws path and
-  return how many received it.
+- `app:wsBroadcast(path, message)` — send `message` to every open connection on that ws path and return how many received it.
 - inside a ws handler, `conn:join(room)` / `conn:leave(room)` manage a connection's room membership.
-- `app:wsBroadcastRoom(room, message)` — send `message` to every connection in that room and return
-  the delivered count.
+- `app:wsBroadcastRoom(room, message)` — send `message` to every connection in that room and return the delivered count.
 
 Connections register on open and are removed on close, so broadcasts never touch a dead socket.
 
 ### Routing patterns
 
-A path is a list of `/`-separated segments. A segment is either a literal, a named param, or
-a wildcard:
+A path is a list of `/`-separated segments. A segment is either a literal, a named param, or a wildcard:
 
-- `:name` — a named param. Its value lands in `ctx.params.name`. Add a constraint with
-  `:where("name", "int" | "alpha" | "alnum" | "slug" | "uuid" | <regex>)`.
-- `:name?` — an **optional** param. The route matches whether or not that trailing segment is
-  present; when absent, `ctx.params.name` is `nil`. A constraint still applies when the segment
-  is present. Example: `/posts/:id?` matches both `/posts` and `/posts/42`.
-- `*` — a **wildcard** (catch-all) terminal segment. It captures the remaining path, including
-  any `/`, and exposes it as `ctx.params.wildcard`. An empty tail is allowed. Example:
-  `/files/*` matches `/files`, `/files/a`, and `/files/a/b/c.txt` (`wildcard` is
-  `"a/b/c.txt"`). `app:url(name, { wildcard = "a/b" })` rebuilds the url with the tail.
+- `:name` — a named param. Its value lands in `ctx.params.name`. Add a constraint with `:where("name", "int" | "alpha" | "alnum" | "slug" | "uuid" | <regex>)`.
+- `:name?` — an **optional** param. The route matches whether or not that trailing segment is present. When absent, `ctx.params.name` is `nil`. A constraint still applies when the segment is present. Example: `/posts/:id?` matches both `/posts` and `/posts/42`.
+- `*` — a **wildcard** (catch-all) terminal segment. It captures the remaining path, including any `/`, and exposes it as `ctx.params.wildcard`. An empty tail is allowed. Example: `/files/*` matches `/files`, `/files/a`, and `/files/a/b/c.txt` (`wildcard` is `"a/b/c.txt"`). `app:url(name, { wildcard = "a/b" })` rebuilds the url with the tail.
 
 ## Execution model
 
-Lua runs on a single thread (its own `lua_State`); blocking I/O is offloaded to a worker pool and
-results are marshalled back. Request handlers, middleware, and WebSocket callbacks therefore run
-**one at a time** on that thread — like Node's event loop. Use `:await()` for I/O so the loop stays
-free; a handler that busy-loops or makes a synchronous blocking call will stall every other
-connection until it returns. HTTP requests are bounded by `requestTimeoutMs` (the server answers
-504 if a handler runs too long); WebSocket messages for one connection are processed in order.
+Lua runs on a single thread (its own `lua_State`). Blocking I/O is offloaded to a worker pool and results are marshalled back. Request handlers, middleware, and WebSocket callbacks therefore run **one at a time** on that thread — like Node's event loop. Use `:await()` for I/O so the loop stays free. A handler that busy-loops or makes a synchronous blocking call will stall every other connection until it returns. HTTP requests are bounded by `requestTimeoutMs` (the server answers 504 if a handler runs too long). WebSocket messages for one connection are processed in order.
 
 ## Scaling across cores
 
-One process runs one event loop, so it uses one CPU core. Set `VARN_WORKERS=N` to run `N`
-worker processes: a master forks them, each binds the same port with `SO_REUSEPORT`, and the
-master restarts any worker that exits. This is the model Node's `cluster` and nginx use — on
-Linux the kernel load-balances new connections across the workers. On Windows, which has no
-`fork`, the master relaunches itself as the worker processes instead. `VARN_WORKERS` defaults to
-`1` and is capped at `1024`. tvOS, watchOS, visionOS, and the browser have no multi-process model,
-so the server stays single-process there.
+One process runs one event loop, so it uses one CPU core. Set `VARN_WORKERS=N` to run `N` worker processes: a master forks them, each binds the same port with `SO_REUSEPORT`, and the master restarts any worker that exits. This is the model Node's `cluster` and nginx use — on Linux the kernel load-balances new connections across the workers. On Windows, which has no `fork`, the master relaunches itself as the worker processes instead. `VARN_WORKERS` defaults to `1` and is capped at `1024`. tvOS, watchOS, visionOS, and the browser have no multi-process model, so the server stays single-process there.
 
-**Workers share nothing.** Each one is a separate process with its own `lua_State`, so anything a
-handler keeps in memory is private to the worker that served the request. That includes the session
-store behind `ctx:session()`, the CSRF secret behind `http.csrf()`, and the counters behind
-`http.rateLimit()`. Because the kernel spreads a client's connections across workers, a session
-started on one worker is invisible to the next, a CSRF token issued by one worker is rejected by
-another with `403`, and a rate limit of `max` per window becomes `max × N` in the worst case. The
-server logs an error the first time `ctx:session()` runs with `VARN_WORKERS` above `1`. Run a single
-worker when you need those, or keep the state in a shared store — the
-[redis](https://github.com/varn-org/components/blob/main/docs/redis.md) component is the usual choice.
+**Workers share nothing.** Each one is a separate process with its own `lua_State`, so anything a handler keeps in memory is private to the worker that served the request. That includes the session store behind `ctx:session()`, the CSRF secret behind `http.csrf()`, and the counters behind `http.rateLimit()`. Because the kernel spreads a client's connections across workers, a session started on one worker is invisible to the next, a CSRF token issued by one worker is rejected by another with `403`, and a rate limit of `max` per window becomes `max × N` in the worst case. The server logs an error the first time `ctx:session()` runs with `VARN_WORKERS` above `1`. Run a single worker when you need those, or keep the state in a shared store — the [redis](https://github.com/varn-org/components/blob/main/docs/redis.md) component is the usual choice.
 
 ## Request hardening
 
-The server fails closed on ambiguous or abusive requests: duplicate or conflicting
-`Content-Length`/`Transfer-Encoding` headers (request smuggling) are answered with `400`, a
-body over 16 MB gets `413`, and a malformed chunk size is rejected. A connection that stops
-making progress — a slow or partial request, or a client reading its response too slowly
-(slowloris) — is closed once it passes `requestTimeoutMs`/`keepAliveTimeoutSeconds`.
+The server fails closed on ambiguous or abusive requests: duplicate or conflicting `Content-Length`/`Transfer-Encoding` headers (request smuggling) are answered with `400`, a body over 16 MB gets `413`, and a malformed chunk size is rejected. A connection that stops making progress — a slow or partial request, or a client reading its response too slowly (slowloris) — is closed once it passes `requestTimeoutMs`/`keepAliveTimeoutSeconds`.
 
 ## Client
 
@@ -187,8 +103,7 @@ async.run(function()
 end)
 ```
 
-`http.client.request(options)`, `http.client.get(url, options?)` and
-`http.client.post(url, options?)` return a promise that resolves to a response table:
+`http.client.request(options)`, `http.client.get(url, options?)` and `http.client.post(url, options?)` return a promise that resolves to a response table:
 
 - `status` — the numeric HTTP status.
 - `ok` — `true` when `status < 400`.
@@ -196,35 +111,23 @@ end)
 - `body` — the raw response body string.
 - `json()` — parses `body` as JSON on demand (requires the `json` module).
 
-Options: `url` (required for `request`), `method` (default `"GET"`), `headers` (table),
-`body` (string), `timeoutSeconds` (default `60`), `verifyTls` (default `true`), `insecure`
-(opt-out of TLS verification for dev certs), `maxResponseBytes` (default 64 MB), plus two
-ergonomic shortcuts:
+Options: `url` (required for `request`), `method` (default `"GET"`), `headers` (table), `body` (string), `timeoutSeconds` (default `60`), `verifyTls` (default `true`), `insecure` (opt-out of TLS verification for dev certs), `maxResponseBytes` (default 64 MB), plus two ergonomic shortcuts:
 
 - `query = { k = v }` — appended to the url as a sorted, percent-encoded query string.
-- `json = value` — serialized with the `json` module and sent with
-  `Content-Type: application/json` (unless you set that header yourself).
+- `json = value` — serialized with the `json` module and sent with `Content-Type: application/json` (unless you set that header yourself).
 
 On failure the promise rejects with a message.
 
-For low-level access, `http.client.requestRaw(options)` resolves to a plain
-`{ status, headers, body }` table without the `ok` flag or the `json()` helper; the ergonomic
-surface above is a thin wrapper over it.
+For low-level access, `http.client.requestRaw(options)` resolves to a plain `{ status, headers, body }` table without the `ok` flag or the `json()` helper. The ergonomic surface above is a thin wrapper over it.
 
-To consume a response incrementally, `http.client.stream(options, onChunk)` invokes `onChunk`
-with each body chunk as it arrives (with `options.onResponse` called first with the status) and
-resolves once the response completes, which suits server-sent events and large downloads;
-`http.client.streamRaw` is its lower-level form.
+To consume a response incrementally, `http.client.stream(options, onChunk)` invokes `onChunk` with each body chunk as it arrives (with `options.onResponse` called first with the status) and resolves once the response completes, which suits server-sent events and large downloads. `http.client.streamRaw` is its lower-level form.
 
 ## URL encoding
 
 Percent-encoding helpers, available in every build including the browser:
 
-- `http.urlEncode(text)` → percent-encodes `text` for a URL. Every byte outside the RFC 3986
-  unreserved set (`A-Za-z0-9-_.~`) becomes `%XX`, so a space becomes `%20`. Use it for a query value
-  or a path segment. Binary-safe.
-- `http.urlDecode(text)` → reverses it, turning `%XX` back into bytes and a `+` into a space, so it
-  also decodes `application/x-www-form-urlencoded` data. Binary-safe.
+- `http.urlEncode(text)` → percent-encodes `text` for a URL. Every byte outside the RFC 3986 unreserved set (`A-Za-z0-9-_.~`) becomes `%XX`, so a space becomes `%20`. Use it for a query value or a path segment. Binary-safe.
+- `http.urlDecode(text)` → reverses it, turning `%XX` back into bytes and a `+` into a space, so it also decodes `application/x-www-form-urlencoded` data. Binary-safe.
 
 ```lua
 local http = require("http")
@@ -801,21 +704,8 @@ server:listen({
 
 ## Under the hood
 
-The server runs an event loop on the same thread as Lua — `epoll` on Linux, `kqueue` on
-macOS/BSD, `IOCP` on Windows — so one process serves many thousands of connections without a
-thread per connection. Poco provides the sockets and TLS.
+The server runs an event loop on the same thread as Lua — `epoll` on Linux, `kqueue` on macOS/BSD, `IOCP` on Windows — so one process serves many thousands of connections without a thread per connection. Poco provides the sockets and TLS.
 
-The client picks the transport its platform is best served by, without changing this API. On desktop it
-is built on Poco; in the browser it uses the host's `fetch`; on iOS it runs on `NSURLSession` and on
-Android on `HttpURLConnection`, so an application's `Info.plist` and `network_security_config.xml`
-govern trust anchors, certificate pinning and the cleartext policy, and the trust store, system proxy
-and HTTP/2 come from the operating system. Every transport hands a redirect to the caller rather than
-following it, and a compressed body is decoded before it is returned.
+The client picks the transport its platform is best served by, without changing this API. On desktop it is built on Poco, in the browser it uses the host's `fetch`, on iOS it runs on `NSURLSession` and on Android on `HttpURLConnection`. An application's `Info.plist` and `network_security_config.xml` therefore govern trust anchors, certificate pinning and the cleartext policy, and the trust store, system proxy and HTTP/2 come from the operating system. Every transport hands a redirect to the caller rather than following it, and a compressed body is decoded before it is returned.
 
-Each handler runs inline on the loop thread the moment its request is parsed, with no per-request
-hand-off, and the Lua runtime collects garbage generationally so the short-lived objects a request
-creates are reclaimed cheaply. The request object passed to a `createServer` handler materializes its
-fields through a metatable, so a handler that reads only `req.path` never pays to build the headers,
-cookies, or query. On plaintext connections static files are sent with the kernel's
-`sendfile`, going straight from the file to the socket without a copy through user space — over TLS
-the payload must be encrypted in user space, so it streams through the normal buffer.
+Each handler runs inline on the loop thread the moment its request is parsed, with no per-request hand-off, and the Lua runtime collects garbage generationally so the short-lived objects a request creates are reclaimed cheaply. The request object passed to a `createServer` handler materializes its fields through a metatable, so a handler that reads only `req.path` never pays to build the headers, cookies, or query. On plaintext connections static files are sent with the kernel's `sendfile`, going straight from the file to the socket without a copy through user space — over TLS the payload must be encrypted in user space, so it streams through the normal buffer.

@@ -1,20 +1,11 @@
 <p align="center">
     <a href="https://github.com/varn-org/varn" target="_blank" rel="noopener noreferrer">
-        <img width="200" src="extras/images/logo.png" alt="Varn Logo">
-    </a>
-</p>
+        <img width="200" src="extras/images/logo.png" alt="Varn Logo"> </a> </p>
 
 <h1 align="center">Varn</h1>
 
 <p align="center">
-    <a href="https://github.com/varn-org/varn/actions/workflows/build-linux.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-linux.yml/badge.svg" alt="Linux"></a>
-    <a href="https://github.com/varn-org/varn/actions/workflows/build-macos.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-macos.yml/badge.svg" alt="macOS"></a>
-    <a href="https://github.com/varn-org/varn/actions/workflows/build-windows.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-windows.yml/badge.svg" alt="Windows"></a>
-    <br>
-    <a href="https://github.com/varn-org/varn/actions/workflows/build-apple.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-apple.yml/badge.svg" alt="Apple"></a>
-    <a href="https://github.com/varn-org/varn/actions/workflows/build-android.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-android.yml/badge.svg" alt="Android"></a>
-    <a href="https://github.com/varn-org/varn/actions/workflows/build-wasm.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-wasm.yml/badge.svg" alt="WebAssembly"></a>
-</p>
+    <a href="https://github.com/varn-org/varn/actions/workflows/build-linux.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-linux.yml/badge.svg" alt="Linux"></a> <a href="https://github.com/varn-org/varn/actions/workflows/build-macos.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-macos.yml/badge.svg" alt="macOS"></a> <a href="https://github.com/varn-org/varn/actions/workflows/build-windows.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-windows.yml/badge.svg" alt="Windows"></a> <br> <a href="https://github.com/varn-org/varn/actions/workflows/build-apple.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-apple.yml/badge.svg" alt="Apple"></a> <a href="https://github.com/varn-org/varn/actions/workflows/build-android.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-android.yml/badge.svg" alt="Android"></a> <a href="https://github.com/varn-org/varn/actions/workflows/build-wasm.yml"><img src="https://github.com/varn-org/varn/actions/workflows/build-wasm.yml/badge.svg" alt="WebAssembly"></a> </p>
 
 **Lua everywhere.** Write the whole application once in Lua and run that same code on a computer, a phone, or in the browser. Underneath it is a fast C++ core that already carries what a real product needs — a web layer, networking, background work, storage, data protection, and packaging — so there is nothing to assemble and nothing that behaves differently on the next device.
 
@@ -137,8 +128,7 @@ Varn **leads every route**, the database and cache included. Database work goes 
 
 ## 💜 Support
 
-If this project saved you time, consider supporting it:
-[GitHub Sponsors](https://github.com/sponsors/paulocoutinhox) · [Ko-fi](https://ko-fi.com/paulocoutinho).
+If this project saved you time, consider supporting it: [GitHub Sponsors](https://github.com/sponsors/paulocoutinhox) · [Ko-fi](https://ko-fi.com/paulocoutinho).
 
 Made with care by [Paulo Coutinho](https://github.com/paulocoutinhox).
 

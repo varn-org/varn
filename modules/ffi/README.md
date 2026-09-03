@@ -25,21 +25,18 @@ print(ffi.C.strlen("hello")) -- 5
 | `ffi.offsetof(ct, field)` | Byte offset of a struct field. |
 | `ffi.metatype(ct, metatable)` | Attach a Lua metatable to a ctype so its instances gain methods and operators. |
 | `ffi.istype(ct, value)` | Whether `value` is a cdata of C type `ct`. |
-| `ffi.gc(cdata, finalizer)` | Register a finalizer to run when the cdata is collected; returns the cdata. |
+| `ffi.gc(cdata, finalizer)` | Register a finalizer to run when the cdata is collected. Returns the cdata. |
 | `ffi.tonumber(value)` | Convert a cdata scalar to a Lua number. |
 | `ffi.addressof(cdata)` | A pointer to a live cdata object. |
 | `ffi.errno([value])` | Read (or set) the C `errno` value. |
 | `ffi.nullptr` | The null pointer value. |
 | `ffi.VERSION` | The FFI backend version string. |
 
-This calls arbitrary native code by design; treat declarations and inputs as trusted.
+This calls arbitrary native code by design. Treat declarations and inputs as trusted.
 
 ## Availability
 
-`ffi` calls native libraries through libffi and is native on every desktop and mobile platform. In
-the browser (wasm) it is unavailable — wasm has no native calling convention to target — so the module
-still loads but its calls return a clear error. See the
-[platform matrix](../../docs/platform-availability.md).
+`ffi` calls native libraries through libffi and is native on every desktop and mobile platform. In the browser (wasm) it is unavailable — wasm has no native calling convention to target — so the module still loads but its calls return a clear error. See the [platform matrix](../../docs/platform-availability.md).
 
 ## Reference, examples, and tests
 

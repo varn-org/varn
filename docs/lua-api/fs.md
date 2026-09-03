@@ -5,21 +5,20 @@ Filesystem access. Reads and writes run off the main loop and return promises.
 - `fs.readFile(path)` → promise resolving to the file contents (binary-safe). Reads the whole file with no artificial size cap, like Node.
 - `fs.writeFile(path, content)` → promise resolving to `"ok"`.
 - `fs.exists(path)` → boolean, checked synchronously.
-- `fs.mkdir(path)` → promise resolving to `"ok"`; creates the directory and any missing parents.
-- `fs.removeRecursive(path)` → promise resolving to `"ok"`; removes a file or a whole directory tree.
+- `fs.mkdir(path)` → promise resolving to `"ok"`. Creates the directory and any missing parents.
+- `fs.removeRecursive(path)` → promise resolving to `"ok"`. Removes a file or a whole directory tree.
 - `fs.open(path, mode)` → promise resolving to a streaming file handle. `mode` is one of `r`, `w`, `a`, `r+`, `w+`, `a+`. Use this instead of `readFile` for large files so the whole content never sits in memory at once:
   - `handle:read(maxBytes)` → promise resolving to up to `maxBytes` bytes (binary-safe), or an empty string at end of file.
   - `handle:write(data)` → promise resolving to `"ok"`.
-  - `handle:close()` → promise resolving to `"ok"`.
-  Await each handle call before issuing the next, the same way you would with a Node file handle.
-- `fs.stat(path)` → promise resolving to a table `{size, mtime, isDir, isFile, isSymlink}`, or rejecting if the path is missing. `mtime` is epoch seconds; `size` is the byte count for files. A symlink is reported as a symlink while `isDir`/`isFile` follow the link to its target.
+  - `handle:close()` → promise resolving to `"ok"`. Await each handle call before issuing the next, the same way you would with a Node file handle.
+- `fs.stat(path)` → promise resolving to a table `{size, mtime, isDir, isFile, isSymlink}`, or rejecting if the path is missing. `mtime` is epoch seconds. `size` is the byte count for files. A symlink is reported as a symlink while `isDir`/`isFile` follow the link to its target.
 - `fs.readdir(path)` → promise resolving to an array of entry names (just the names, not full paths).
 - `fs.rename(from, to)` → promise resolving to `"ok"`.
 - `fs.copy(from, to)` → promise resolving to `"ok"`. Overwrites the destination if it already exists.
 - `fs.append(path, data)` → promise resolving to `"ok"`. Opens the file in binary append mode, creating parent directories as needed.
 - `fs.mkdtemp(prefix)` → promise resolving to the path of a freshly created unique temporary directory whose name starts with `prefix`.
 
-Paths are not sandboxed; confine untrusted input before passing it here. A path containing a null byte is rejected rather than silently truncated.
+Paths are not sandboxed. Confine untrusted input before passing it here. A path containing a null byte is rejected rather than silently truncated.
 
 ## Examples
 

@@ -1,7 +1,6 @@
 # ⏳ async
 
-`async.sleep(ms)`, `async.spawn(fn)`, `async.run(fn)`, `promise:await()`,
-`promise:isDone()`, and the promise resolve/reject machinery.
+`async.sleep(ms)`, `async.spawn(fn)`, `async.run(fn)`, `promise:await()`, `promise:isDone()`, and the promise resolve/reject machinery.
 
 ### Promise lifecycle & references
 

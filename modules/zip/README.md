@@ -1,7 +1,6 @@
 # 🗜️ zip
 
-Create, extract, and list ZIP archives — backed by libzip with zlib for compression. Every call
-returns a promise.
+Create, extract, and list ZIP archives — backed by libzip with zlib for compression. Every call returns a promise.
 
 ```lua
 local async = require("async")

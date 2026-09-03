@@ -8,7 +8,7 @@ Known trust boundaries and sharp edges for people running or embedding Varn. Thi
 
 ## 📁 fs
 
-Like Node, `fs` is unrestricted by design: `fs.readFile`/`fs.writeFile` operate on whatever path the script passes, with no sandbox, root confinement, or size cap — Varn runs your own code on your own machine. The consequence is that a path built from *untrusted request data* can read or overwrite anywhere the process can (traversal, symlink following); validate or confine such paths in your own application (the static file handler below is already confined). Reading a never-ending special file (e.g. `/dev/zero`) will grow until memory runs out, exactly as in Node.
+Like Node, `fs` is unrestricted by design: `fs.readFile`/`fs.writeFile` operate on whatever path the script passes, with no sandbox, root confinement, or size cap — Varn runs your own code on your own machine. The consequence is that a path built from *untrusted request data* can read or overwrite anywhere the process can (traversal, symlink following). Validate or confine such paths in your own application (the static file handler below is already confined). Reading a never-ending special file (e.g. `/dev/zero`) will grow until memory runs out, exactly as in Node.
 
 ## 🗜️ zip
 

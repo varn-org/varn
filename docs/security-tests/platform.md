@@ -1,7 +1,6 @@
 # 🖥️ platform
 
-`platform.os/arch/hostVersion/cpuCount/pointerSize/endianness/libPrefix/shlibSuffix`,
-`platform.libraryFilename(name)`, `platform.getLibraryPathByName(name, subdir?)`.
+`platform.os/arch/hostVersion/cpuCount/pointerSize/endianness/libPrefix/shlibSuffix`, `platform.libraryFilename(name)`, `platform.getLibraryPathByName(name, subdir?)`.
 
 ### Information disclosure
 

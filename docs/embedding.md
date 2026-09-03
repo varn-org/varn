@@ -1,8 +1,8 @@
 # Embedding varn in another project
 
-varn is a fast C++ core that runs Lua and is exposed to host programs as a small C library. The same Lua runs on desktop, iOS, Android, and the browser (wasm). This guide shows how another CMake project links varn, how the host and Lua talk to each other, and how you would drive native mobile UI from one shared Lua script.
+Varn is a fast C++ core that runs Lua and is exposed to host programs as a small C library. The same Lua runs on desktop, iOS, Android, and the browser (wasm). This guide shows how another CMake project links varn, how the host and Lua talk to each other, and how you would drive native mobile UI from one shared Lua script.
 
-varn is **headless**: it ships modules for http, sockets, filesystem, crypto, json, process, and so on, but **no UI toolkit**. Screens and widgets are provided by the host as *host functions* backed by native views, described below.
+Varn is **headless**: it ships modules for http, sockets, filesystem, crypto, json, process, and so on, but **no UI toolkit**. Screens and widgets are provided by the host as *host functions* backed by native views, described below.
 
 ## The C API
 
@@ -130,24 +130,19 @@ varn_runtime_run_string(rt, script, "=app");   /* returns when the host releases
 
 Run it on a thread of your own: it blocks for as long as the runtime lives, and the emitting side stays free.
 
-Retain and release are safe from any thread, and a retain taken while the loop is already running is never
-lost to the loop's own decision to exit. The two must balance: `varn_runtime_release` answers non-zero when
-there is no retain left to give back, which is worth checking, because a host that releases more than it
-retained has a bug that would otherwise surface as a runtime that exits earlier than it should.
+Retain and release are safe from any thread, and a retain taken while the loop is already running is never lost to the loop's own decision to exit. The two must balance, so `varn_runtime_release` answers non-zero when there is no retain left to give back. That answer is worth checking, because a host that releases more than it retained has a bug that would otherwise surface as a runtime exiting earlier than it should.
 
-A runtime is not single-shot. Each `varn_runtime_run_file` or `varn_runtime_run_string` gets the event loop
-and its own exit code, so a host can load one chunk and then run another on the same runtime, keeping every
-host function, subscription and piece of Lua state the earlier chunk left behind.
+A runtime is not single-shot. Each `varn_runtime_run_file` or `varn_runtime_run_string` gets the event loop and its own exit code, so a host can load one chunk and then run another on the same runtime, keeping every host function, subscription and piece of Lua state the earlier chunk left behind.
 
 ## Driving native UI from one Lua script
 
 The pattern for a mobile app whose screens are written in Lua and rendered with the platform's native widgets:
 
-1. the host registers UI primitives (`ui_screen`, `ui_label`, `ui_button`, …) as host functions, each backed by a real `UIView` on iOS or `View` on Android;
-2. one shared `app.lua` describes the screens by calling those primitives — it is byte-for-byte the same on both platforms;
+1. the host registers UI primitives (`ui_screen`, `ui_label`, `ui_button`, …) as host functions, each backed by a real `UIView` on iOS or `View` on Android.
+2. one shared `app.lua` describes the screens by calling those primitives — it is byte-for-byte the same on both platforms.
 3. a native event (a tap) runs a Lua handler, so behaviour also lives in Lua.
 
-varn does not provide these primitives — you write the thin native bridge once per platform. What is identical is the Lua.
+Varn does not provide these primitives — you write the thin native bridge once per platform. What is identical is the Lua.
 
 ### The shared screen script (`app.lua`, same on iOS and Android)
 
@@ -242,8 +237,8 @@ class HostUi(private val activity: Activity) {
 }
 ```
 
-The screen logic (`app.lua`) is shared; only `makeScreen`/`makeButton`/… differ, and each builds the platform's own native components, so the app looks and feels native on both while the code you write is Lua.
+The screen logic (`app.lua`) is shared. Only `makeScreen`/`makeButton`/… differ, and each builds the platform's own native components, so the app looks and feels native on both while the code you write is Lua.
 
 ### Notes and current limits
 
-- There is no bundled widget set, layout engine, or navigation — those are yours to expose. varn provides the runtime, the Lua ↔ native bridge, and everything non-visual (networking, storage, crypto, json, scheduling).
+- There is no bundled widget set, layout engine, or navigation — those are yours to expose. Varn provides the runtime, the Lua ↔ native bridge, and everything non-visual (networking, storage, crypto, json, scheduling).

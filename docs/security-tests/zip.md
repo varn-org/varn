@@ -1,7 +1,6 @@
 # 🗜️ zip
 
-`zip.create(archive, entries)`, `zip.extract(archive, destDir)`, `zip.list(archive)`
-(libzip-backed, async).
+`zip.create(archive, entries)`, `zip.extract(archive, destDir)`, `zip.list(archive)` (libzip-backed, async).
 
 ### Zip slip / path traversal on extract
 
@@ -15,7 +14,7 @@
 | ZIP-006 | Deeply nested `..` | CWE-22 | `a/../../../etc/x` |
 | ZIP-007 | Percent-like / encoded name | CWE-22 | encoded dot sequences in the entry name |
 | ZIP-008 | Overlong UTF-8 dots | CWE-176 | overlong `..` in the name |
-| ZIP-009 | Trailing dot/space (Windows) | CWE-289 | `evil.`/`evil ` maps elsewhere |
+| ZIP-009 | Trailing dot/space (Windows) | CWE-289 | `evil. `/`evil ` maps elsewhere |
 | ZIP-010 | NUL in entry name | CWE-626 | name truncation at NUL |
 | ZIP-011 | Canonicalization bypass | CWE-22 | name normalizes outside destRoot |
 | ZIP-012 | destDir is a symlink | CWE-59 | extraction root itself is a symlink |

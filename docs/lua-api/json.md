@@ -3,13 +3,10 @@
 A standalone JSON module that converts between JSON text and Lua values.
 
 - `json.encode(value [, options])` → JSON text for any Lua value. Alias: `json.stringify`.
-  - `options.pretty = true` indents with two spaces; `options.indent = N` indents with `N` spaces.
+  - `options.pretty = true` indents with two spaces. `options.indent = N` indents with `N` spaces.
 - `json.decode(text)` → the Lua value. Alias: `json.parse`. Raises on invalid input.
 
-Type mapping: string, number (integer or float), boolean, `nil` ↔ `null`, a sequence
-(contiguous `1..n` keys) ↔ a JSON array, any other table ↔ a JSON object. Non-finite
-numbers (`NaN`/`Infinity`) encode as `null`, and invalid UTF-8 is replaced rather than
-throwing. Decoding rejects deeply nested input and malformed text.
+Type mapping: string, number (integer or float), boolean, `nil` ↔ `null`, a sequence (contiguous `1..n` keys) ↔ a JSON array, any other table ↔ a JSON object. Non-finite numbers (`NaN`/`Infinity`) encode as `null`, and invalid UTF-8 is replaced rather than throwing. Decoding rejects deeply nested input and malformed text.
 
 ## Examples
 
