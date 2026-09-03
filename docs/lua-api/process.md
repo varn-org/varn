@@ -26,7 +26,7 @@ Commands are not sandboxed. Confine untrusted input before passing it here. A co
 ### `exec_and_env.lua`
 
 ```lua
--- runs a command, prints its capture, and reports the working directory.
+-- Runs a command and prints its capture, environment, and working directory.
 local async = require("async")
 local process = require("process")
 
@@ -47,6 +47,35 @@ async.run(function()
 end)
 ```
 
+### `exec_status_and_argv.lua`
+
+```lua
+-- Runs a successful and a failing command and prints env, cwd, and argv.
+local async = require("async")
+local process = require("process")
+
+if not process.available then
+    print("process not available")
+    return
+end
+
+async.run(function()
+    local ok = process.exec("echo hello"):await()
+    print("ok code:   " .. ok.code)
+    print("ok stdout: " .. ok.stdout)
+
+    local fail = process.exec("exit 3"):await()
+    print("fail code: " .. fail.code)
+
+    print("path:      " .. process.getenv("PATH", "(unset)"))
+    print("missing:   " .. process.getenv("VARN_NOPE", "(default)"))
+    print("env type:  " .. type(process.env))
+    print("cwd:       " .. process.cwd())
+    print("argv:      " .. table.concat(process.argv, " "))
+
+    print("process status and argv ok")
+end)
+```
 ## Under the hood
 
 On native builds commands run through `fork` + `execl("/bin/sh", ...)` with pipes for stdout and stderr, capturing each stream until end of file. The browser build uses a stub driver that rejects `exec`.

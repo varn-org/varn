@@ -1,4 +1,4 @@
--- a HEAD request to a route handler advertises Content-Length but sends no body, so keep-alive framing stays in sync
+-- A HEAD request to a route handler advertises Content-Length but sends no body, so keep-alive framing stays in sync.
 local async = require("async")
 local http = require("http")
 local socket = require("socket")
@@ -29,10 +29,10 @@ async.run(function()
     end
     conn:close():await()
 
-    -- HEAD still carries the Content-Length the GET body would have had
+    -- HEAD still carries the Content-Length the GET body would have had.
     assert(resp:find("Content%-Length: 13"), "HEAD must advertise Content-Length: " .. resp)
 
-    -- but the response must end at the header terminator with zero body bytes
+    -- But the response must end at the header terminator with zero body bytes.
     local headEnd = assert(resp:find("\r\n\r\n", 1, true), "missing header terminator")
     local extra = #resp - (headEnd + 3)
     assert(extra == 0, "HEAD leaked a body of " .. extra .. " bytes")

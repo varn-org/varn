@@ -1,4 +1,4 @@
--- pretty-prints with a default or explicit indent
+-- Pretty-prints with a default or explicit indent.
 local json = require("json")
 
 print(json.encode({ user = { id = 1, roles = { "admin", "user" } } }, { pretty = true }))

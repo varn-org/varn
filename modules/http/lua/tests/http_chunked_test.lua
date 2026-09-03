@@ -1,4 +1,4 @@
--- the reactor decodes a Transfer-Encoding: chunked request body, including one carrying trailers, and hands the reassembled body to the handler
+-- The reactor decodes a Transfer-Encoding: chunked request body, including one carrying trailers, and hands the reassembled body to the handler.
 local async = require("async")
 local http = require("http")
 local socket = require("socket")
@@ -12,7 +12,7 @@ app:post("/echo", function(ctx)
 end)
 app:listen({ host = host, port = port })
 
--- sends a raw request with Connection: close and returns the whole response text
+-- Sends a raw request with Connection: close and returns the whole response text.
 local function send(request)
     local conn = socket.tcp.connect(host, port):await()
     conn:send(request):await()
@@ -35,7 +35,7 @@ local function bodyOf(response)
 end
 
 async.run(function()
-    -- a chunked body split across two chunks is decoded and echoed intact
+    -- A chunked body split across two chunks is decoded and echoed intact.
     local chunked = send(table.concat({
         "POST /echo HTTP/1.1",
         "Host: " .. host,
@@ -48,7 +48,7 @@ async.run(function()
     assert(chunked:find(" 200 ", 1, true), "a chunked request should be accepted")
     assert(bodyOf(chunked) == "Hello, World!", "the chunked body should decode intact")
 
-    -- a chunked body that carries a trailer after the final chunk still decodes cleanly
+    -- A chunked body that carries a trailer after the final chunk still decodes cleanly.
     local trailered = send(table.concat({
         "POST /echo HTTP/1.1",
         "Host: " .. host,

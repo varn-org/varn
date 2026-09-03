@@ -1,4 +1,4 @@
--- prints the number of cpus reported for the host
+-- Prints the number of cpus reported for the host.
 local p = require("platform")
 
 local cpus = p.cpuCount()

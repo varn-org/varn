@@ -1,4 +1,4 @@
--- shows hello echo and hashed file routes in one process
+-- Shows hello echo and hashed file routes in one process.
 local http = require("http")
 local async = require("async")
 local fs = require("fs")

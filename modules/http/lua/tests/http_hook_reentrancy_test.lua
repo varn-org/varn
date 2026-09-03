@@ -1,4 +1,4 @@
--- a hook or event handler that registers another one of its own kind while it runs must not corrupt the list being walked
+-- A hook or event handler that registers another one of its own kind while it runs must not corrupt the list being walked.
 local async = require("async")
 local http = require("http")
 
@@ -12,7 +12,7 @@ local responseHookRuns = 0
 local startHookRuns = 0
 local eventRuns = 0
 
--- the first hook of each kind grows its own list mid-dispatch and a second plain hook follows it, so the dispatcher must still read the entry after the one that reallocated
+-- The first hook of each kind grows its own list mid-dispatch and a second plain hook follows it, so the dispatcher must still read the entry after the one that reallocated.
 app:onStart(function()
     startHookRuns = startHookRuns + 1
     for _ = 1, 16 do
@@ -85,7 +85,7 @@ async.run(function()
     assert(requestHookRuns == 2, "only the two originally registered onRequest hooks run on the first request, got " .. requestHookRuns)
     assert(responseHookRuns == 2, "only the two originally registered onResponse hooks run on the first request, got " .. responseHookRuns)
 
-    -- the second request walks the grown lists, which is where a stale iterator would show up
+    -- The second request walks the grown lists, which is where a stale iterator would show up.
     local second = http.client.get("http://" .. host .. ":" .. port .. "/ping"):await()
     assert(second.status == 200, "the second request should succeed after the hook lists grew")
     assert(requestHookRuns == 20, "every onRequest hook should run on the second request, got " .. requestHookRuns)

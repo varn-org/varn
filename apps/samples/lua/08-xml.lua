@@ -1,4 +1,4 @@
--- xml encodes and decodes with the same table mapping json uses
+-- Xml encodes and decodes with the same table mapping json uses.
 local xml = require("xml")
 
 local document = xml.encode({

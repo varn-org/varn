@@ -10,10 +10,36 @@ Type mapping: string, number (integer or float), boolean, `nil` ↔ `null`, a se
 
 ## Examples
 
+### `aliases.lua`
+
+```lua
+-- Shows stringify and parse as aliases of encode and decode.
+local json = require("json")
+
+local text = json.stringify({ id = 1, active = true })
+print(text)
+
+local value = json.parse(text)
+print(value.id, value.active)
+```
+
+### `decode_error.lua`
+
+```lua
+-- Guards decode with pcall since invalid input raises.
+local json = require("json")
+
+local ok, err = pcall(json.decode, "{not json")
+print(ok, err)
+
+local value = json.decode('{"valid":true}')
+print(value.valid)
+```
+
 ### `encode_decode.lua`
 
 ```lua
--- json: encode a lua value to text and decode it back.
+-- Encodes a lua value to text and decodes it back.
 local json = require("json")
 
 local text = json.encode({ name = "varn", version = "1.0", tags = { "fast", "small" } })
@@ -23,10 +49,23 @@ local value = json.decode(text)
 print(value.name, value.version, value.tags[1], value.tags[2])
 ```
 
+### `non_finite.lua`
+
+```lua
+-- Encodes non-finite numbers as null instead of throwing.
+local json = require("json")
+
+-- Encodes nan and both infinities as null.
+print(json.encode({ nan = 0 / 0, pos = 1 / 0, neg = -1 / 0 }))
+
+-- Keeps finite values in a mixed array and nulls out the rest.
+print(json.encode({ 1, 1 / 0, 2.5, 0 / 0 }))
+```
+
 ### `pretty.lua`
 
 ```lua
--- json: pretty-print with a default or explicit indent.
+-- Pretty-prints with a default or explicit indent.
 local json = require("json")
 
 print(json.encode({ user = { id = 1, roles = { "admin", "user" } } }, { pretty = true }))
@@ -36,10 +75,10 @@ print(json.encode({ a = 1, b = 2 }, { indent = 4 }))
 ### `types.lua`
 
 ```lua
--- json: type conversion between lua and json in both directions.
+-- Converts types between lua and json in both directions.
 local json = require("json")
 
--- scalars and containers all encode directly.
+-- Encodes scalars and containers directly.
 print(json.encode("a string"))
 print(json.encode(42))
 print(json.encode(3.5))
@@ -48,11 +87,10 @@ print(json.encode({}))
 print(json.encode({ 1, 2, 3 }))
 print(json.encode({ nested = { a = 1, b = { 2, 3 } } }))
 
--- decode maps json types onto lua values.
+-- Decodes json types onto lua values.
 local v = json.decode('{"i":7,"f":1.5,"b":false,"arr":[1,2],"obj":{"k":"v"}}')
 print(v.i, v.f, v.b, v.arr[2], v.obj.k)
 ```
-
 ## Under the hood
 
 Parsing and serialization use the nlohmann/json C++ library.

@@ -1,4 +1,4 @@
--- an instant carries methods for formatting, fields and calendar arithmetic
+-- An instant carries methods for formatting, fields and calendar arithmetic.
 local datetime = require("datetime")
 
 local moment = datetime.parse("2026-09-02T10:30:00Z")

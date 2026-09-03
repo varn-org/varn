@@ -1,4 +1,4 @@
--- checks the raw digest length for a fixed input string
+-- Checks the raw digest length for a fixed input string.
 local crypto = require("crypto")
 
 local raw = crypto.digest("SHA256", "raw-test", "raw")

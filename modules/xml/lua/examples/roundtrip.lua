@@ -1,4 +1,4 @@
--- parse a document, walk its nodes, and re-encode it
+-- Parse a document, walk its nodes, and re-encode it.
 local xml = require("xml")
 
 local original = '<note priority="high"><to>Lua</to><from>C++</from><body>hello &amp; bye</body></note>'

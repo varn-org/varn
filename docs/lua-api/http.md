@@ -140,22 +140,21 @@ print(http.urlDecode(q))                         -- "hello world & more"
 ### `app_full.lua`
 
 ```lua
--- full tour of the http app framework: routing, groups, middleware, params, constraints,
--- named routes, cookies, sessions, body parsing, uploads, downloads and static files.
+-- Full tour of the http app framework covering routing, groups, middleware, params, constraints, named routes, cookies, sessions, body parsing, uploads, downloads and static files.
 local http = require("http")
 
 local app = http.createApp()
 
--- config: a simple key/value store readable anywhere the app is in scope.
+-- Config is a simple key/value store readable anywhere the app is in scope.
 app:config({ appName = "Varn app", version = "1.0.0" })
 app:config("env", os.getenv("VARN_ENV") or "dev")
 
--- lifecycle: run setup when the server starts.
+-- The onStart hook runs setup when the server starts.
 app:onStart(function()
     print("app started: " .. app:config("appName") .. " " .. app:config("version"))
 end)
 
--- request/response hooks observe every request (hooks observe, middleware controls flow).
+-- Request/response hooks observe every request (hooks observe, middleware controls flow).
 app:onRequest(function(ctx)
     ctx.state.startedAt = os.clock()
 end)
@@ -163,12 +162,12 @@ app:onResponse(function(ctx)
     print(string.format("done %s %s", ctx.req.method, ctx.req.path))
 end)
 
--- event bus: decouple side effects from handlers.
+-- The event bus decouples side effects from handlers.
 app:on("user.created", function(name)
     print("event user.created:", name)
 end)
 
--- plugin: a reusable block that installs routes, middleware and handlers into the app.
+-- A plugin is a reusable block that installs routes, middleware and handlers into the app.
 local function healthPlugin(host, opts)
     host:get(opts.path or "/health", function(ctx)
         ctx:json({ status = "ok" })
@@ -176,28 +175,24 @@ local function healthPlugin(host, opts)
 end
 app:plugin(healthPlugin, { path = "/health" })
 
--- module: bundle a group of related routes under a prefix.
+-- A module bundles a group of related routes under a prefix.
 app:module("/blog", function(blog)
     blog:get("/", function(ctx) ctx:json({ posts = {} }) end)
     blog:get("/:slug", function(ctx) ctx:json({ slug = ctx.params.slug }) end)
 end)
 
--- global middleware runs on every request and can act before and after the handler.
+-- Global middleware runs on every request and can act before and after the handler.
 app:use(function(ctx, next)
-    local startedAt = os.clock()
     ctx.state.requestId = tostring(math.random(100000, 999999))
     next()
     print(string.format("[%s] %s %s", ctx.state.requestId, ctx.req.method, ctx.req.path))
-    local _ = startedAt
 end)
 
--- built-in security middlewares: cors and security headers apply to every request.
--- origin may be "*" or an allowlist table that echoes only matching request origins.
--- credentials combined with origin "*" is rejected at setup, never silently.
+-- Built-in security middlewares cors and security headers apply to every request, where origin may be "*" or an allowlist table that echoes only matching request origins and credentials combined with origin "*" is rejected at setup, never silently.
 app:use(http.cors({ origin = "*", methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD" }))
 app:use(http.securityHeaders({ frameOptions = "SAMEORIGIN", referrerPolicy = "no-referrer", hsts = 31536000 }))
 
--- a per-route middleware only runs for the routes it is attached to.
+-- A per-route middleware only runs for the routes it is attached to.
 local function requireToken(ctx, next)
     if ctx.req.headers["X-Token"] ~= "secret" then
         ctx:status(401):json({ error = "missing token" })
@@ -206,7 +201,7 @@ local function requireToken(ctx, next)
     next()
 end
 
--- response helpers: json, text, html, status, header, redirect.
+-- Response helpers for json, text, html, status, header and redirect.
 app:get("/", function(ctx)
     ctx:html("<h1>Varn app</h1>")
 end)
@@ -219,7 +214,7 @@ app:get("/go", function(ctx)
     ctx:redirect("/", 302)
 end)
 
--- path params plus a constraint and a named route for url building.
+-- Path params plus a constraint and a named route for url building.
 app:get("/users/:id", function(ctx)
     ctx:json({ id = ctx.params.id, query = ctx.query })
 end):name("users.show"):where("id", "int")
@@ -228,13 +223,12 @@ app:get("/links", function(ctx)
     ctx:json({ user = app:url("users.show", { id = 42 }) })
 end)
 
--- every verb is available, plus all() and route().
+-- Every verb is available, plus all() and route().
 app:put("/items/:id", function(ctx) ctx:json({ updated = ctx.params.id }) end)
 app:delete("/items/:id", function(ctx) ctx:status(204):send() end)
 app:all("/any", function(ctx) ctx:text("method was " .. ctx.req.method) end)
 
--- route groups share a prefix and their own middleware (also used for versioning).
--- this group also enforces an api key and a rate limit on top of the custom token check.
+-- Route groups share a prefix and their own middleware (also used for versioning), and this group enforces an api key and a rate limit on top of the custom token check.
 local api = app:group("/api/v1")
 api:use(http.rateLimit({ windowMs = 60000, max = 100 }))
 api:use(http.apiKey({ header = "X-API-Key", keys = { "demo-key" } }))
@@ -247,7 +241,7 @@ api:post("/items", function(ctx)
     ctx:status(201):json({ created = body })
 end)
 
--- body parsing detects json, form-urlencoded and multipart from the content type.
+-- Body parsing detects json, form-urlencoded and multipart from the content type.
 app:post("/form", function(ctx)
     ctx:json(ctx:body())
 end)
@@ -263,20 +257,20 @@ app:post("/upload", function(ctx)
     })
 end)
 
--- cookies: read from ctx.req.cookies, write with ctx:cookie.
+-- Cookies are read from ctx.req.cookies and written with ctx:cookie.
 app:get("/cookie", function(ctx)
     ctx:cookie("visited", "yes", { path = "/", httpOnly = true, maxAge = 3600, sameSite = "Lax" })
     ctx:json({ previous = ctx.req.cookies.visited })
 end)
 
--- sessions persist per client across requests using an in-memory store.
+-- Sessions persist per client across requests using an in-memory store.
 app:get("/counter", function(ctx)
     local session = ctx:session()
     session.count = (session.count or 0) + 1
     ctx:json({ count = session.count })
 end)
 
--- regenerate the session id on a privilege change to defeat session fixation.
+-- Regenerate the session id on a privilege change to defeat session fixation.
 app:post("/session-login", function(ctx)
     local session = ctx:session()
     session.user = "u1"
@@ -284,12 +278,12 @@ app:post("/session-login", function(ctx)
     ctx:json({ ok = true })
 end)
 
--- file download with an attachment name.
+-- File download with an attachment name.
 app:get("/download", function(ctx)
     ctx:file("README.md", { download = "varn-readme.md" })
 end)
 
--- jwt issue + verify, with a role guarded area.
+-- Jwt issue + verify, with a role guarded area.
 app:post("/login", function(ctx)
     local token = http.jwt.sign({ sub = "u1", role = "admin" }, "topsecret", { expiresIn = 3600 })
     ctx:json({ token = token })
@@ -302,13 +296,13 @@ admin:get("/panel", function(ctx)
     ctx:json({ user = ctx.state.user.sub, role = ctx.state.user.role })
 end)
 
--- csrf double-submit protection for browser forms.
+-- Csrf double-submit protection for browser forms.
 local forms = app:group("/forms")
 forms:use(http.csrf())
 forms:get("/token", function(ctx) ctx:json({ csrf = ctx.state.csrfToken }) end)
 forms:post("/submit", function(ctx) ctx:json({ ok = true }) end)
 
--- streaming sends chunks progressively with chunked transfer encoding.
+-- Streaming sends chunks progressively with chunked transfer encoding.
 local async = require("async")
 app:get("/stream", function(ctx)
     ctx:type("text/plain")
@@ -319,7 +313,7 @@ app:get("/stream", function(ctx)
     ctx:send()
 end)
 
--- websocket endpoint with open/message/close callbacks (server owns the socket, lua stays on its thread).
+-- Websocket endpoint with open/message/close callbacks (server owns the socket, lua stays on its thread).
 app:ws("/ws", {
     open = function(conn) conn:send("welcome") end,
     message = function(conn, data)
@@ -333,7 +327,7 @@ app:ws("/ws", {
     close = function() print("websocket closed") end,
 })
 
--- the same endpoint with an origin allowlist that blocks cross-site upgrades.
+-- The same endpoint with an origin allowlist that blocks cross-site upgrades.
 app:ws("/ws-secure", {
     origins = { "http://localhost:3000", "https://localhost:3000" },
     open = function(conn) conn:send("welcome") end,
@@ -341,7 +335,7 @@ app:ws("/ws-secure", {
     close = function() print("secure websocket closed") end,
 })
 
--- centralized error handling and a custom not found page.
+-- Centralized error handling and a custom not found page.
 app:get("/boom", function()
     error("something failed")
 end)
@@ -354,8 +348,7 @@ app:onNotFound(function(ctx)
     ctx:status(404):json({ error = "no route", path = ctx.req.path })
 end)
 
--- static files are served from publicDir with cache, range and directory listing support.
--- requestTimeoutMs bounds how long a handler may run before the server answers 504.
+-- Static files are served from publicDir with cache, range and directory listing support, and requestTimeoutMs bounds how long a handler may run before the server answers 504.
 app:listen({
     host = "0.0.0.0",
     port = tonumber(os.getenv("VARN_PORT") or "3000"),
@@ -366,97 +359,114 @@ app:listen({
 })
 ```
 
-### `sse_server.lua`
+### `app_roundtrip.lua`
 
 ```lua
--- server-sent events plus gzip: a live clock stream and a large json endpoint the server compresses.
-local http = require("http")
+-- Drives an in-process app with the client to show routing, body parsing and a json response then exits, with the server on its own threads so the script issues its requests inside async.run and finishes cleanly.
 local async = require("async")
-
-local app = http.createApp()
-
-app:get("/clock", function(ctx)
-    local stream = ctx:sse()
-    for _ = 1, 10 do
-        stream:send("tick", os.date("%H:%M:%S"))
-        stream:comment("keep-alive")
-        async.sleep(1000):await()
-    end
-    stream:close()
-end)
-
--- a large json body is gzipped automatically when the client sends Accept-Encoding: gzip.
-app:get("/data", function(ctx)
-    local rows = {}
-    for i = 1, 500 do
-        rows[i] = { id = i, name = "row-" .. i }
-    end
-    ctx:json({ rows = rows })
-end)
-
-app:listen({ port = tonumber(os.getenv("VARN_PORT") or "3000"), compress = true })
-```
-
-### `ws_chat.lua`
-
-```lua
--- websocket chat with rooms: each client joins a room and messages fan out to that room's members.
 local http = require("http")
 
+local port = 8091
+local base = "http://127.0.0.1:" .. port
+
 local app = http.createApp()
 
-app:ws("/chat", {
-    open = function(conn)
-        conn:join("lobby")
-        conn:send("welcome to lobby")
-    end,
-    message = function(conn, data)
-        local room = data:match("^/join%s+(%S+)$")
-        if room then
-            conn:leave("lobby")
-            conn:join(room)
-            conn:send("joined " .. room)
-            return
-        end
-        app:wsBroadcastRoom("lobby", data)
-    end,
-})
+-- A path parameter constrained to digits feeds a json response.
+app:get("/users/:id", function(ctx)
+    ctx:json({ id = ctx.params.id })
+end):where("id", "int")
 
--- a route can push to every subscriber of a ws path with app:wsBroadcast.
-app:ws("/notifications", { open = function(conn) conn:send("subscribed") end })
-app:get("/announce", function(ctx)
-    ctx:json({ delivered = app:wsBroadcast("/notifications", ctx.query.text or "ping") })
+-- Json body parsing detects the content type and hands back a parsed table.
+app:post("/echo", function(ctx)
+    ctx:json({ received = ctx:body() })
 end)
 
-app:listen({ port = tonumber(os.getenv("VARN_PORT") or "3000") })
+app:listen({ host = "127.0.0.1", port = port })
+
+async.run(function()
+    local user = http.client.requestRaw({
+        url = base .. "/users/7",
+        method = "GET",
+        headers = {},
+        timeoutSeconds = 10,
+    }):await()
+    print("GET /users/7 -> " .. user.status .. " " .. user.body)
+
+    local payload = '{"name":"varn"}'
+    local echo = http.client.requestRaw({
+        url = base .. "/echo",
+        method = "POST",
+        headers = { ["Content-Type"] = "application/json" },
+        body = payload,
+        timeoutSeconds = 10,
+    }):await()
+    print("POST /echo -> " .. echo.status .. " " .. echo.body)
+end)
 ```
 
 ### `cache_negotiation.lua`
 
 ```lua
--- caching and content negotiation: cache-control, etag revalidation, and api-vs-html from one route.
+-- Caching and content negotiation covering cache-control, etag revalidation, and api-vs-html responses from one route.
 local http = require("http")
 
 local app = http.createApp()
 
+-- A long-lived cached resource sets cache-control plus an etag the client can revalidate against.
 app:get("/profile/:id", function(ctx)
+    local id = ctx.params.id
     ctx:cache({ maxAge = 300, private = true })
-    ctx:etag("profile-" .. ctx.params.id .. "-v3")
+    ctx:etag("profile-" .. id .. "-v3")
+
+    -- If etag matched the request's If-None-Match, the helper already answered 304 and ended the response.
     if ctx.req.headers["If-None-Match"] then
         return
     end
-    ctx:json({ id = ctx.params.id, name = "User " .. ctx.params.id })
+
+    ctx:json({ id = id, name = "User " .. id })
 end)
 
+-- The same path serves html to a browser and json to an api client based on Accept.
 app:get("/report", function(ctx)
-    if ctx:accepts("html", "json") == "json" then
+    local best = ctx:accepts("html", "json")
+    if best == "json" then
         ctx:cache(60):json({ title = "Quarterly report", revenue = 1000 })
     else
-        ctx:cache(60):html("<h1>Quarterly report</h1>")
+        ctx:cache(60):html("<h1>Quarterly report</h1><p>Revenue: 1000</p>")
     end
 end)
 
-app:listen({ port = tonumber(os.getenv("VARN_PORT") or "3000") })
+-- A never-cache endpoint for volatile data.
+app:get("/now", function(ctx)
+    ctx:cache({ noStore = true }):json({ time = os.time() })
+end)
+
+app:listen({
+    host = "0.0.0.0",
+    port = tonumber(os.getenv("VARN_PORT") or "3000"),
+})
+```
+
+### `client_ergonomic.lua`
+
+```lua
+-- The ergonomic http client where get/post return a parsed response with status, ok, headers, body and json().
+local async = require("async")
+
+async.run(function()
+    local http = require("http")
+
+    -- A get with a query table appends a proper query string and parses the json response on demand.
+    local base = os.getenv("VARN_HTTP_URL") or "https://httpbin.org"
+    local resp = http.client.get(base .. "/get", { query = { name = "varn", lang = "en" } }):await()
+    print("get status", resp.status, "ok", resp.ok)
+    print("echoed name", resp.json().args.name)
+
+    -- A post with a json option serializes the body and sets a Content-Type of application/json.
+    local posted = http.client.post(base .. "/post", { json = { value = 42, tags = { "a", "b" } } }):await()
+    print("post status", posted.status)
+    print("server saw json", posted.json().json.value)
+end)
 ```
 
 ### `client_request.lua`
@@ -481,32 +491,10 @@ async.spawn(function()
 end)
 ```
 
-### `client_ergonomic.lua`
-
-```lua
--- the ergonomic http client: get/post return a parsed response with status, ok, headers, body and json().
-local async = require("async")
-
-async.run(function()
-    local http = require("http")
-
-    -- a get with a query table appends a proper query string and parses the json response on demand.
-    local base = os.getenv("VARN_HTTP_URL") or "https://httpbin.org"
-    local resp = http.client.get(base .. "/get", { query = { name = "varn", lang = "en" } }):await()
-    print("get status", resp.status, "ok", resp.ok)
-    print("echoed name", resp.json().args.name)
-
-    -- a post with a json option serializes the body and sets Content-Type: application/json.
-    local posted = http.client.post(base .. "/post", { json = { value = 42, tags = { "a", "b" } } }):await()
-    print("post status", posted.status)
-    print("server saw json", posted.json().json.value)
-end)
-```
-
 ### `create_server_transport.lua`
 
 ```lua
--- creates an HTTP server and binds it to a local port using explicit transport options.
+-- Creates an HTTP server and binds it to a local port using explicit transport options.
 local http = require("http")
 
 local port = 8080
@@ -521,7 +509,7 @@ print("http server listening on http://127.0.0.1:" .. port)
 ### `https_json_server.lua`
 
 ```lua
--- serves json over tls using files in the working directory or varn tls env variables
+-- Serves json over tls using files in the working directory or varn tls env variables.
 local http = require("http")
 
 local server = http.createServer(function(req, res)
@@ -547,14 +535,13 @@ server:listen({
 ### `integration_modules.lua`
 
 ```lua
--- combines async file reads hashing and static responses on one host from the repo root
+-- Combines async file reads hashing and static responses on one host from the repo root.
 local http = require("http")
 local async = require("async")
 local fs = require("fs")
 local crypto = require("crypto")
 
 local dataDir = "build/_integration_tmp"
-os.execute("mkdir -p '" .. dataDir .. "'")
 
 local function route(req, res)
     if req.path == "/write" then
@@ -594,7 +581,7 @@ http.createServer(route):listen(tonumber(os.getenv("VARN_PORT") or "3000"))
 ### `json_server.lua`
 
 ```lua
--- serves small json payloads plus static files from the public tree
+-- Serves small json payloads plus static files from the public tree.
 local http = require("http")
 
 local server = http.createServer(function(req, res)
@@ -617,10 +604,32 @@ server:listen({
 })
 ```
 
+### `jwt_demo.lua`
+
+```lua
+-- Demonstrates issuing and verifying json web tokens without a server, then exits cleanly.
+local http = require("http")
+
+local secret = "topsecret"
+
+-- Sign a short-lived token carrying a subject and a role claim.
+local token = http.jwt.sign({ sub = "u1", role = "admin" }, secret, { expiresIn = 3600 })
+print("token issued, length " .. #token)
+
+-- Verifying with the right secret returns the decoded claims.
+local claims, err = http.jwt.verify(token, secret)
+assert(claims, err)
+print("verified sub=" .. claims.sub .. " role=" .. claims.role)
+
+-- Verifying with the wrong secret returns nil and an error, never the claims.
+local forged, forgedErr = http.jwt.verify(token, "not-the-secret")
+print("wrong secret rejected: " .. tostring(forged == nil) .. " (" .. tostring(forgedErr) .. ")")
+```
+
 ### `server_demo.lua`
 
 ```lua
--- shows hello echo and hashed file routes in one process
+-- Shows hello echo and hashed file routes in one process.
 local http = require("http")
 local async = require("async")
 local fs = require("fs")
@@ -676,10 +685,140 @@ server:listen({
 })
 ```
 
+### `sse_server.lua`
+
+```lua
+-- Server-sent events plus gzip with a live clock stream and a large json endpoint the server compresses automatically.
+local http = require("http")
+local async = require("async")
+
+local app = http.createApp()
+
+-- The /clock route streams sse events a browser reads through EventSource.
+app:get("/clock", function(ctx)
+    local stream = ctx:sse()
+    for i = 1, 10 do
+        stream:send("tick", os.date("%H:%M:%S"))
+        stream:comment("keep-alive")
+        async.sleep(1000):await()
+        local _ = i
+    end
+    stream:close()
+end)
+
+-- A large json body is gzipped when the client sends an Accept-Encoding of gzip.
+app:get("/data", function(ctx)
+    local rows = {}
+    for i = 1, 500 do
+        rows[i] = { id = i, name = "row-" .. i, note = "a reasonably long descriptive label" }
+    end
+    ctx:json({ rows = rows })
+end)
+
+app:get("/", function(ctx)
+    ctx:html([[
+<!doctype html>
+<h1>SSE clock</h1>
+<pre id="out"></pre>
+<script>
+const out = document.getElementById("out");
+const es = new EventSource("/clock");
+es.addEventListener("tick", e => out.textContent += e.data + "\n");
+</script>
+]])
+end)
+
+-- Gzip is on by default and compress = false on listen turns it off.
+app:listen({
+    host = "0.0.0.0",
+    port = tonumber(os.getenv("VARN_PORT") or "3000"),
+    compress = true,
+})
+```
+
+### `url_encode.lua`
+
+```lua
+-- Percent-encodes a value for a query string and decodes it back, available in every build including the browser.
+local http = require("http")
+
+local encoded = http.urlEncode("hello world & more")
+print("encoded " .. encoded)
+
+local decoded = http.urlDecode(encoded)
+print("decoded " .. decoded)
+
+assert(decoded == "hello world & more", "round-trip mismatch")
+
+print("http url encode ok")
+```
+
+### `ws_chat.lua`
+
+```lua
+-- Websocket chat with rooms where each client joins a room and messages fan out to that room's members.
+local http = require("http")
+
+local app = http.createApp()
+
+-- A connection joins the room named in its query string, defaulting to "lobby".
+app:ws("/chat", {
+    open = function(conn)
+        conn:join("lobby")
+        conn:send("welcome to lobby")
+    end,
+    message = function(conn, data)
+        -- A "/join <room>" command moves the sender while anything else broadcasts to the lobby.
+        local room = data:match("^/join%s+(%S+)$")
+        if room then
+            conn:leave("lobby")
+            conn:join(room)
+            conn:send("joined " .. room)
+            return
+        end
+
+        app:wsBroadcastRoom("lobby", data)
+    end,
+    close = function()
+        print("a chat client disconnected")
+    end,
+})
+
+-- A notifications endpoint pushes to everyone on the path with app:wsBroadcast.
+app:ws("/notifications", {
+    open = function(conn) conn:send("subscribed") end,
+})
+
+app:get("/announce", function(ctx)
+    local count = app:wsBroadcast("/notifications", ctx.query.text or "ping")
+    ctx:json({ delivered = count })
+end)
+
+app:get("/", function(ctx)
+    ctx:html([[
+<!doctype html>
+<h1>WebSocket chat</h1>
+<input id="msg"><button onclick="send()">send</button>
+<pre id="log"></pre>
+<script>
+const ws = new WebSocket("ws://" + location.host + "/chat");
+const log = document.getElementById("log");
+ws.onmessage = e => log.textContent += e.data + "\n";
+function send() { ws.send(document.getElementById("msg").value); }
+</script>
+]])
+end)
+
+app:listen({
+    host = "0.0.0.0",
+    port = tonumber(os.getenv("VARN_PORT") or "3000"),
+})
+```
+
 ### `xml_server.lua`
 
 ```lua
--- serves small xml payloads plus static files from the public tree
+-- Serves small xml payloads plus static files from the public tree.
 local http = require("http")
 
 local server = http.createServer(function(req, res)
@@ -701,7 +840,6 @@ server:listen({
     servePublic = true
 })
 ```
-
 ## Under the hood
 
 The server runs an event loop on the same thread as Lua — `epoll` on Linux, `kqueue` on macOS/BSD, `IOCP` on Windows — so one process serves many thousands of connections without a thread per connection. Poco provides the sockets and TLS.

@@ -1,4 +1,4 @@
--- allocates a c buffer, copies bytes in, casts it, and reads it back via ffi.string
+-- Allocates a c buffer, copies bytes in, casts it, and reads it back via ffi.string.
 local ffi = require("ffi")
 
 local buf = ffi.new("char[?]", 6)

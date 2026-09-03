@@ -22,10 +22,37 @@ Host and build information.
 
 ## Examples
 
+### `byte_layout.lua`
+
+```lua
+-- Prints the pointer size and byte order of the host build.
+local p = require("platform")
+
+print("pointerSize()", p.pointerSize())
+print("endianness() ", p.endianness())
+
+assert(p.pointerSize() == 4 or p.pointerSize() == 8, "pointerSize")
+assert(p.endianness() == "little" or p.endianness() == "big", "endianness")
+print("platform byte layout ok")
+```
+
+### `cpu_count.lua`
+
+```lua
+-- Prints the number of cpus reported for the host.
+local p = require("platform")
+
+local cpus = p.cpuCount()
+print("cpuCount()", cpus)
+
+assert(type(cpus) == "number" and cpus >= 1, "cpuCount should be at least one")
+print("platform cpu count ok")
+```
+
 ### `host_version.lua`
 
 ```lua
--- prints semver baked in at configure time for the host binary
+-- Prints semver baked in at configure time for the host binary.
 local p = require("platform")
 
 local v = p.hostVersion()
@@ -37,7 +64,7 @@ assert(v:match("^%d+%.%d+%.%d+"), "expected semver x.y.z")
 ### `info.lua`
 
 ```lua
--- prints host identifiers, system data, and shared library naming hints
+-- Prints host identifiers, system data, and shared library naming hints.
 local p = require("platform")
 
 print("os()         ", p.os())
@@ -58,10 +85,26 @@ assert(p.endianness() == "little" or p.endianness() == "big", "endianness")
 print("platform info ok")
 ```
 
+### `lib_naming.lua`
+
+```lua
+-- Prints the shared library prefix and suffix pieces for the host.
+local p = require("platform")
+
+local prefix = p.libPrefix()
+local suffix = p.shlibSuffix()
+print("libPrefix()  ", prefix)
+print("shlibSuffix()", suffix)
+
+assert(type(prefix) == "string", "libPrefix")
+assert(type(suffix) == "string" and #suffix > 0, "shlibSuffix")
+print("platform lib naming ok")
+```
+
 ### `library_paths.lua`
 
 ```lua
--- builds example filenames for a short logical library name
+-- Builds example filenames for a short logical library name.
 local p = require("platform")
 
 local name = "z"
@@ -75,6 +118,19 @@ assert(fn:match("%."), "expected extension in filename")
 print("platform library path helpers ok")
 ```
 
+### `system_identity.lua`
+
+```lua
+-- Prints the host operating system and cpu architecture identifiers.
+local p = require("platform")
+
+print("os()  ", p.os())
+print("arch()", p.arch())
+
+assert(type(p.os()) == "string" and #p.os() > 0, "os")
+assert(type(p.arch()) == "string" and #p.arch() > 0, "arch")
+print("platform system identity ok")
+```
 ## Under the hood
 
 Reads the host operating-system and build APIs directly, with no external dependency.

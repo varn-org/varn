@@ -1,4 +1,4 @@
--- writes a tiny archive and lists its member names
+-- Writes a tiny archive and lists its member names.
 local async = require("async")
 local zip = require("zip")
 

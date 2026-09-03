@@ -1,4 +1,4 @@
--- an in-process unix-domain server echoes one message back to a client and both shut down
+-- An in-process unix-domain server echoes one message back to a client and both shut down.
 local async = require("async")
 local socket = require("socket")
 

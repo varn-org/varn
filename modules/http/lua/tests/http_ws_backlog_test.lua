@@ -1,4 +1,4 @@
--- a websocket whose peer keeps draining stays open past the outbound cap in cumulative traffic, since the cap bounds the outstanding backlog and the sent prefix is reclaimed rather than counted forever
+-- A websocket whose peer keeps draining stays open past the outbound cap in cumulative traffic, since the cap bounds the outstanding backlog and the sent prefix is reclaimed rather than counted forever.
 local async = require("async")
 local http = require("http")
 local socket = require("socket")
@@ -7,7 +7,7 @@ local crypto = require("crypto")
 local host = "127.0.0.1"
 local port = 39831
 
--- two bursts of this size push the cumulative total past the 16 mb cap while no single backlog ever approaches it
+-- Two bursts of this size push the cumulative total past the 16 mb cap while no single backlog ever approaches it.
 local frameBytes = 512 * 1024
 local burst = 18
 local payload = string.rep("v", frameBytes)
@@ -22,7 +22,7 @@ local function clientFrame(text)
     return string.char(0x81, 0x80 + n) .. mask .. table.concat(out)
 end
 
--- reads one unmasked server frame off the buffer, returning it plus the unconsumed remainder
+-- Reads one unmasked server frame off the buffer, returning it plus the unconsumed remainder.
 local function parseFrame(buffer)
     if #buffer < 2 then
         return nil, buffer
@@ -114,11 +114,11 @@ async.run(function()
         end
     end
 
-    -- the first burst queues nine megabytes, and draining only half of it leaves several megabytes outstanding
+    -- The first burst queues nine megabytes, and draining only half of it leaves several megabytes outstanding.
     sendBurst()
     readFrames(burst // 2)
 
-    -- the second burst arrives while that tail is still unsent, so the queue holds a large already-sent prefix on top of a small live backlog
+    -- The second burst arrives while that tail is still unsent, so the queue holds a large already-sent prefix on top of a small live backlog.
     sendBurst()
     readFrames(burst * 2 - (burst // 2))
 

@@ -1,4 +1,4 @@
--- creates an HTTP server and binds it to a local port using explicit transport options
+-- Creates an HTTP server and binds it to a local port using explicit transport options.
 local http = require("http")
 
 local port = 8080

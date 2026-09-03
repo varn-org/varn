@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from tools.core import android, apple, apps, bench, cxx, general, lib, site, tests, wasm
+from tools.core import android, apple, apps, bench, cxx, docs, general, lib, site, tests, wasm
 
 
 def _common(
@@ -72,6 +72,14 @@ def _opt_test_cpp(parser: argparse.ArgumentParser) -> None:
         default=[],
         metavar="VAR=VALUE",
         help="extra -D cache entry forwarded to cmake (repeatable)",
+    )
+
+
+def _opt_docs(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="fail when a reference page no longer matches the examples instead of rewriting it",
     )
 
 
@@ -169,6 +177,11 @@ _TASKS = {
         general.fmt,
         None,
         "Run clang-format over the modules/ and src/ sources.",
+    ),
+    "docs": (
+        docs.sync,
+        _opt_docs,
+        "Rewrite the Examples section of every reference page from the example files.",
     ),
     "clean": (general.clean, _opt_clean, "Remove the build directory."),
     "zip": (general.zip, None, "Create a source archive beside the repo."),

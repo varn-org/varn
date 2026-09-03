@@ -1,4 +1,4 @@
--- verifies HMAC-SHA256 against RFC 4231 test case 1
+-- Verifies HMAC-SHA256 against RFC 4231 test case 1.
 local crypto = require("crypto")
 
 local key = string.rep("\x0b", 20)

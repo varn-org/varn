@@ -1,4 +1,4 @@
--- day-to-day web features covering gzip compression, sse streaming, cache/etag helpers and accept negotiation through one in-process server
+-- Day-to-day web features covering gzip compression, sse streaming, cache/etag helpers and accept negotiation through one in-process server.
 local async = require("async")
 local http = require("http")
 
@@ -9,7 +9,7 @@ local function statusBody(res)
     return res.status, res.body
 end
 
--- header names arrive with the casing the transport used, so a lookup normalises before comparing
+-- Header names arrive with the casing the transport used, so a lookup normalises before comparing.
 local function headersBody(res)
     local lowered = {}
     for name, value in pairs(res.headers or {}) do
@@ -34,7 +34,7 @@ end
 
 local app = http.createApp()
 
--- a large json body crosses the compression threshold and the client sees raw bytes since it does not decode
+-- A large json body crosses the compression threshold and the client sees raw bytes since it does not decode.
 local big = {}
 for i = 1, 400 do
     big[i] = { id = i, label = "item-number-" .. i }
@@ -42,16 +42,16 @@ end
 
 app:get("/big", function(ctx) ctx:json({ items = big }) end)
 
--- a tiny body stays below the threshold and must never be compressed
+-- A tiny body stays below the threshold and must never be compressed.
 app:get("/tiny", function(ctx) ctx:json({ ok = true }) end)
 
--- an already-encoded body is left untouched even when large and gzip is accepted
+-- An already-encoded body is left untouched even when large and gzip is accepted.
 app:get("/preencoded", function(ctx)
     local payload = string.rep("text-payload-line\n", 200)
     ctx:header("Content-Encoding", "identity"):type("text/plain"):send(payload)
 end)
 
--- sse streams a couple of events then closes so the buffering client receives a finite body
+-- Sse streams a couple of events then closes so the buffering client receives a finite body.
 app:get("/events", function(ctx)
     local stream = ctx:sse()
     stream:send("hello")
@@ -61,7 +61,7 @@ app:get("/events", function(ctx)
     stream:close()
 end)
 
--- cache and etag helpers stamp dynamic responses
+-- Cache and etag helpers stamp dynamic responses.
 app:get("/cached", function(ctx)
     ctx:cache({ maxAge = 120, private = true }):json({ ok = true })
 end)
@@ -70,7 +70,7 @@ app:get("/tagged", function(ctx)
     ctx:etag("v1"):json({ ok = true })
 end)
 
--- content negotiation picks html or json from the Accept header
+-- Content negotiation picks html or json from the Accept header.
 app:get("/negotiate", function(ctx)
     local best = ctx:accepts("html", "json")
     if best == "json" then
@@ -83,13 +83,13 @@ end)
 app:listen({ host = "127.0.0.1", port = port })
 
 async.run(function()
-    -- a large json body with gzip accepted comes back gzip-framed and smaller than the plain body
+    -- A large json body with gzip accepted comes back gzip-framed and smaller than the plain body.
     local plainStatus, plainBody = statusBody(get("/big"))
     assert(plainStatus == 200, "plain big request failed")
     assert(plainBody:byte(1) ~= 0x1f, "plain body unexpectedly gzip-framed")
 
-    -- what the server sends is gzip framed, though a client is free to decode it before handing it over, which the
-    -- platform transports do, so the assertion is that the server compressed rather than that the caller sees the frame
+    -- What the server sends is gzip framed, though a client is free to decode it before handing it over, which the.
+    -- Platform transports do, so the assertion is that the server compressed rather than that the caller sees the frame.
     local gzHeaders, gzBody = headersBody(get("/big", { ["Accept-Encoding"] = "gzip" }))
     if gzHeaders["content-encoding"] == "gzip" then
         assert(gzBody:byte(1) == 0x1f and gzBody:byte(2) == 0x8b, "gzip magic bytes missing")
@@ -98,15 +98,15 @@ async.run(function()
         assert(gzBody == plainBody, "a decoded body must match the plain one")
     end
 
-    -- a tiny body stays uncompressed even when gzip is accepted
+    -- A tiny body stays uncompressed even when gzip is accepted.
     local _, tinyBody = statusBody(get("/tiny", { ["Accept-Encoding"] = "gzip" }))
     assert(tinyBody:byte(1) ~= 0x1f, "tiny body should not be gzipped")
 
-    -- an already-encoded body is never recompressed
+    -- An already-encoded body is never recompressed.
     local _, preBody = statusBody(get("/preencoded", { ["Accept-Encoding"] = "gzip" }))
     assert(preBody:byte(1) ~= 0x1f, "pre-encoded body recompressed")
 
-    -- the sse stream carries event, data and comment lines with correct framing
+    -- The sse stream carries event, data and comment lines with correct framing.
     local sseStatus, sseBody = statusBody(get("/events"))
     assert(sseStatus == 200, "sse request failed")
     assert(sseBody:find("data: hello\n\n", 1, true), "sse default-event message missing")
@@ -114,21 +114,21 @@ async.run(function()
     assert(sseBody:find("data: multi\ndata: line\n\n", 1, true), "sse multi-line data not split")
     assert(sseBody:find(": heartbeat\n\n", 1, true), "sse comment heartbeat missing")
 
-    -- the cache helper composes the directive string
+    -- The cache helper composes the directive string.
     local cacheStatus, cacheBody = statusBody(get("/cached"))
     assert(cacheStatus == 200 and cacheBody:find("ok", 1, true), "cache route failed")
 
-    -- the etag helper answers a fresh request and short-circuits a matching If-None-Match to 304
+    -- The etag helper answers a fresh request and short-circuits a matching If-None-Match to 304.
     assert(statusBody(get("/tagged")) == 200, "etag fresh request failed")
     assert(statusBody(get("/tagged", { ["If-None-Match"] = '"v1"' })) == 304, "etag did not honor If-None-Match")
 
-    -- If-None-Match matching handles a comma-separated list, the wildcard, and a weak validator, and ignores a non-match
+    -- If-None-Match matching handles a comma-separated list, the wildcard, and a weak validator, and ignores a non-match.
     assert(statusBody(get("/tagged", { ["If-None-Match"] = '"other", "v1"' })) == 304, "etag should match a tag listed among others")
     assert(statusBody(get("/tagged", { ["If-None-Match"] = "*" })) == 304, "etag should honor the wildcard")
     assert(statusBody(get("/tagged", { ["If-None-Match"] = 'W/"v1"' })) == 304, "etag should match a weak validator by weak comparison")
     assert(statusBody(get("/tagged", { ["If-None-Match"] = '"v2"' })) == 200, "etag should not short-circuit a non-matching validator")
 
-    -- content negotiation returns json or html based on Accept
+    -- Content negotiation returns json or html based on Accept.
     local _, negJson = statusBody(get("/negotiate", { ["Accept"] = "application/json" }))
     assert(negJson:find("json", 1, true), "negotiation did not pick json")
     local _, negHtml = statusBody(get("/negotiate", { ["Accept"] = "text/html" }))

@@ -1,4 +1,4 @@
--- verifies SHA-256 against known vectors for the empty and "abc" inputs
+-- Verifies SHA-256 against known vectors for the empty and "abc" inputs.
 local crypto = require("crypto")
 
 assert(crypto.digest("SHA256", "", "hex")

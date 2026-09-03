@@ -1,4 +1,4 @@
--- the full crypto surface is available on a native build
+-- The full crypto surface is available on a native build.
 local crypto = require("crypto")
 
 print("sha256:", crypto.digest("SHA256", "varn"):sub(1, 32) .. "...")

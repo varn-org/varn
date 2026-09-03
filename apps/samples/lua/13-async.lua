@@ -1,8 +1,8 @@
--- timers, background work and combinators all run on one event loop
+-- Timers, background work and combinators all run on one event loop.
 local async = require("async")
 
 local function delayed(value, ms)
-    -- a combinator takes promises, and async.promise turns a coroutine into one
+    -- A combinator takes promises, and async.promise turns a coroutine into one.
     return async.promise(function()
         async.sleep(ms):await()
         return value

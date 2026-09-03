@@ -1,4 +1,4 @@
--- prints the host operating system and cpu architecture identifiers
+-- Prints the host operating system and cpu architecture identifiers.
 local p = require("platform")
 
 print("os()  ", p.os())

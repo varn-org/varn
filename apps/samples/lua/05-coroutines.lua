@@ -1,4 +1,4 @@
--- coroutines yield values back to the caller and resume where they stopped
+-- Coroutines yield values back to the caller and resume where they stopped.
 local function counter(limit)
     return coroutine.create(function()
         for i = 1, limit do

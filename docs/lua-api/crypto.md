@@ -44,10 +44,51 @@ There is no artificial input-size limit — Varn runs your own code on your own 
 
 ## Examples
 
+### `crypto_extra.lua`
+
+```lua
+-- Demonstrates the codec, uuid, password, encryption, and key derivation helpers.
+local crypto = require("crypto")
+
+-- Base64 and base64url codecs round-trip binary data.
+local data = "varn \240\159\148\144 crypto"
+print("base64:    ", crypto.base64Encode(data))
+print("base64url: ", crypto.base64UrlEncode(data))
+print("hex:       ", crypto.hexEncode(data))
+assert(crypto.base64Decode(crypto.base64Encode(data)) == data)
+assert(crypto.base64UrlDecode(crypto.base64UrlEncode(data)) == data)
+assert(crypto.hexDecode(crypto.hexEncode(data)) == data)
+
+-- Random identifiers, time-ordered with uuidV7.
+print("uuid v4:   ", crypto.uuidV4())
+print("uuid v7:   ", crypto.uuidV7())
+
+-- Password hashing produces a self-describing string you can store as-is.
+local stored = crypto.hashPassword("hunter2")
+print("password:  ", stored)
+assert(crypto.verifyPassword("hunter2", stored))
+assert(not crypto.verifyPassword("nope", stored))
+
+-- Authenticated encryption with a 32-byte key, tamper-evident on decrypt.
+local key = crypto.randomBytes(32)
+local blob = crypto.encrypt(key, "attack at dawn")
+print("ciphertext bytes:", #blob)
+assert(crypto.decrypt(key, blob) == "attack at dawn")
+
+-- Key derivation from a password or a high-entropy key.
+local derived = crypto.pbkdf2("hunter2", crypto.randomBytes(16), 100000, 32, "SHA256")
+print("pbkdf2 key bytes:", #derived)
+
+local sub = crypto.hkdf(key, "", "session", 32, "SHA256")
+print("hkdf key bytes:  ", #sub)
+
+print("crypto extra example ok")
+```
+
 ### `digest_raw.lua`
 
 ```lua
--- checks the raw digest length for a fixed input string
+-- Checks the raw digest length for a fixed input string.
 local crypto = require("crypto")
 
 local raw = crypto.digest("SHA256", "raw-test", "raw")
@@ -58,7 +99,7 @@ print("crypto.digest raw ok, len=", #raw)
 ### `digest_sha256.lua`
 
 ```lua
--- checks a short string against a known hex fingerprint
+-- Checks a short string against a known hex fingerprint.
 local crypto = require("crypto")
 
 local h = crypto.digest("SHA256", "varn", "hex")
@@ -70,7 +111,7 @@ print("crypto.digest SHA256 hex ok:", h:sub(1, 16), "...")
 ### `digest_sha512.lua`
 
 ```lua
--- hashes a string with SHA-512 and prints the start of the hex digest.
+-- Hashes a string with SHA-512 and prints the start of the hex digest.
 local crypto = require("crypto")
 
 local hex = crypto.digest("SHA512", "test", "hex")
@@ -82,7 +123,7 @@ print("crypto.digest SHA512 ok:", hex:sub(1, 16) .. "...")
 ### `digest_vectors.lua`
 
 ```lua
--- verifies SHA-256 against known vectors for the empty and "abc" inputs.
+-- Verifies SHA-256 against known vectors for the empty and "abc" inputs.
 local crypto = require("crypto")
 
 assert(crypto.digest("SHA256", "", "hex")
@@ -93,10 +134,38 @@ assert(crypto.digest("SHA256", "abc", "hex")
 print("crypto.digest SHA256 vectors ok (empty, abc)")
 ```
 
+### `equals.lua`
+
+```lua
+-- Constant-time comparison for verifying a mac or token without leaking its bytes through timing.
+local crypto = require("crypto")
+
+local mac = crypto.hmac("SHA256", "server-secret", "session-42")
+
+-- The caller presents a token verified in constant time, never with the == operator.
+local presented = crypto.hmac("SHA256", "server-secret", "session-42")
+assert(crypto.equals(mac, presented), "a matching token verifies")
+assert(not crypto.equals(mac, "tampered"), "a wrong token is rejected")
+
+print("crypto.equals ok")
+```
+
+### `hmac_raw.lua`
+
+```lua
+-- Produces a keyed hmac in raw binary form and checks its length.
+local crypto = require("crypto")
+
+local raw = crypto.hmac("SHA256", "secret-key", "message", "raw")
+assert(#raw == 32, "raw hmac sha256 length")
+
+print("crypto.hmac raw ok, len=", #raw)
+```
+
 ### `hmac_vectors.lua`
 
 ```lua
--- verifies HMAC-SHA256 against RFC 4231 test case 1.
+-- Verifies HMAC-SHA256 against RFC 4231 test case 1.
 local crypto = require("crypto")
 
 local key = string.rep("\x0b", 20)
@@ -109,7 +178,7 @@ print("crypto.hmac RFC 4231 vector ok")
 ### `random_bytes.lua`
 
 ```lua
--- asserts only on the length fields returned for random byte requests
+-- Asserts only on the length fields returned for random byte requests.
 local crypto = require("crypto")
 
 local b16 = crypto.randomBytes(16)
@@ -119,40 +188,20 @@ assert(#b32 == 32, "length")
 print("crypto.randomBytes ok")
 ```
 
-### `crypto_extra.lua`
+### `random_bytes_cap.lua`
 
 ```lua
--- codecs, uuids, password hashing, authenticated encryption, and key derivation.
+-- Shows randomBytes drawing a large requested size and rejecting a negative count.
 local crypto = require("crypto")
 
--- codecs round-trip arbitrary binary data.
-assert(crypto.base64Decode(crypto.base64Encode("foo\0bar")) == "foo\0bar")
-assert(crypto.base64UrlDecode(crypto.base64UrlEncode("\251\255\190")) == "\251\255\190")
-assert(crypto.hexDecode(crypto.hexEncode("a\0b")) == "a\0b")
+local bytes = crypto.randomBytes(1024 * 1024)
+assert(#bytes == 1024 * 1024, "draw the requested size")
 
--- identifiers.
-print("uuid v4:", crypto.uuidV4())
-print("uuid v7:", crypto.uuidV7())
+local ok = pcall(crypto.randomBytes, -1)
+assert(not ok, "a negative count is rejected")
 
--- password storage.
-local stored = crypto.hashPassword("hunter2")
-assert(crypto.verifyPassword("hunter2", stored))
-assert(not crypto.verifyPassword("nope", stored))
-
--- authenticated encryption.
-local key = crypto.randomBytes(32)
-local blob = crypto.encrypt(key, "attack at dawn")
-assert(crypto.decrypt(key, blob) == "attack at dawn")
-
--- key derivation.
-local k1 = crypto.pbkdf2("password", "salt", 1, 32, "SHA256")
-assert(#k1 == 32)
-local k2 = crypto.hkdf(key, "", "session", 32, "SHA256")
-assert(#k2 == 32)
-
-print("crypto extra example ok")
+print("crypto.randomBytes ok: len=", #bytes, "negative rejected")
 ```
-
 ## Under the hood
 
 Hashes, HMAC, random bytes, base64/hex codecs, UUIDs, scrypt password hashing, AES-256-GCM, and PBKDF2/HKDF are all provided by OpenSSL.

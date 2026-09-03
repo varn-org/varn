@@ -1,4 +1,4 @@
--- exercises every severity helper with multiple arguments
+-- Exercises every severity helper with multiple arguments.
 local log = require("log")
 
 for _, level in ipairs({ "debug", "info", "warn", "error" }) do

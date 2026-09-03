@@ -1,4 +1,4 @@
--- static file serving where a full request carries an ETag and Accept-Ranges, a Range request returns 206 with a Content-Range and the partial body, and a matching If-None-Match returns 304
+-- Static file serving where a full request carries an ETag and Accept-Ranges, a Range request returns 206 with a Content-Range and the partial body, and a matching If-None-Match returns 304.
 local async = require("async")
 local http = require("http")
 local socket = require("socket")
@@ -50,7 +50,7 @@ async.run(function()
     fs.writeFile(dir .. "/asset.txt", "0123456789"):await()
     app:listen({ host = host, port = port, publicDir = dir, servePublic = true })
 
-    -- a full request serves 200 with an ETag and the Accept-Ranges advertisement
+    -- A full request serves 200 with an ETag and the Accept-Ranges advertisement.
     local full = request({})
     assert(full:find(" 200 ", 1, true), "a full request should be 200")
     assert(bodyOf(full) == "0123456789", "the full body should be served")
@@ -58,13 +58,13 @@ async.run(function()
     assert(etag, "a static file should carry an ETag")
     assert(headerValue(full, "Accept%-Ranges") == "bytes", "the server should advertise byte ranges")
 
-    -- a range request serves 206 with a Content-Range and only the requested bytes
+    -- A range request serves 206 with a Content-Range and only the requested bytes.
     local partial = request({ "Range: bytes=0-4" })
     assert(partial:find(" 206 ", 1, true), "a range request should be 206")
     assert(headerValue(partial, "Content%-Range") == "bytes 0-4/10", "the content range should be reported")
     assert(bodyOf(partial) == "01234", "the partial body should be the requested range")
 
-    -- a matching If-None-Match yields 304 with no body
+    -- A matching If-None-Match yields 304 with no body.
     local cached = request({ "If-None-Match: " .. etag })
     assert(cached:find(" 304 ", 1, true), "a matching etag should be 304")
     assert(bodyOf(cached) == "", "a 304 response should have no body")

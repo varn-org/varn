@@ -1,4 +1,4 @@
--- echo service with an overridable listen port through the environment
+-- Echo service with an overridable listen port through the environment.
 
 local async = require("async")
 local socket = require("socket")

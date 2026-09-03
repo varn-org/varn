@@ -1,4 +1,4 @@
--- patterns, iteration over matches and substitution
+-- Patterns, iteration over matches and substitution.
 local text = "varn: fast, small, embeddable"
 
 for word in text:gmatch("%a+") do

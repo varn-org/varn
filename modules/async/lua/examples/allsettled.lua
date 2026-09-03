@@ -1,4 +1,4 @@
--- collects per-input outcomes with async.allSettled, which never rejects
+-- Collects per-input outcomes with async.allSettled, which never rejects.
 local async = require("async")
 
 local function resolveAfter(ms, value)

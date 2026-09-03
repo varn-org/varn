@@ -39,10 +39,47 @@ Async TCP, TLS, UDP, and unix-domain sockets. Every operation returns a promise.
 
 ## Examples
 
+### `close_pending.lua`
+
+```lua
+-- Closing a socket releases a pending receive and a pending accept.
+local async = require("async")
+local socket = require("socket")
+
+local host = "127.0.0.1"
+local port = 9861
+
+async.run(function()
+    -- A listener with no incoming connection keeps accept pending until closed.
+    local listener = socket.tcp.listen(host, port, 16):await()
+    async.spawn(function()
+        async.sleep(80):await()
+        listener:close():await()
+    end)
+    local accepted, aerr = listener:accept():await()
+    print("accept after close:", accepted, aerr)
+
+    -- A connected socket with an idle peer keeps receive pending until closed.
+    local server = socket.tcp.listen(host, port + 1, 16):await()
+    local conn = socket.tcp.connect(host, port + 1):await()
+    local peer = server:accept():await()
+    async.spawn(function()
+        async.sleep(80):await()
+        conn:close():await()
+    end)
+    local chunk, rerr = conn:receive(4096):await()
+    print("receive after close:", chunk and #chunk or chunk, rerr)
+    peer:close():await()
+    server:close():await()
+
+    print("socket close pending ok")
+end)
+```
+
 ### `echo_server.lua`
 
 ```lua
--- echo service with an overridable listen port through the environment
+-- Echo service with an overridable listen port through the environment.
 
 local async = require("async")
 local socket = require("socket")
@@ -89,10 +126,76 @@ async.spawn(function()
 end)
 ```
 
+### `tcp_roundtrip.lua`
+
+```lua
+-- An in-process tcp server echoes one message back to a client and both shut down.
+local async = require("async")
+local socket = require("socket")
+
+local host = "127.0.0.1"
+local port = 9831
+
+async.spawn(function()
+    local listener = socket.tcp.listen(host, port, 16):await()
+    local client = listener:accept():await()
+    local chunk = client:receive(4096):await()
+    client:send("echo:" .. chunk):await()
+    client:close():await()
+    listener:close():await()
+end)
+
+async.run(function()
+    async.sleep(80):await()
+
+    local conn = socket.tcp.connect(host, port):await()
+    conn:send("hello"):await()
+    local reply = conn:receive(4096):await()
+    print("tcp reply:", reply)
+    conn:close():await()
+
+    print("socket tcp round-trip ok")
+end)
+```
+
+### `tls_client.lua`
+
+```lua
+-- Opens a verified tls connection and speaks a minimal http request over it.
+local async = require("async")
+local socket = require("socket")
+
+local host = os.getenv("VARN_TLS_HOST") or "example.com"
+local port = tonumber(os.getenv("VARN_TLS_PORT") or "443")
+
+async.run(function()
+    local conn, cerr = socket.tls.connect(host, port, { timeoutMs = 5000 }):await()
+    if cerr then
+        print("tls connect error:", cerr)
+        return
+    end
+
+    local request = "GET / HTTP/1.0\r\nHost: " .. host .. "\r\nConnection: close\r\n\r\n"
+    conn:send(request):await()
+
+    local reply, rerr = conn:receive(512):await()
+    if rerr then
+        print("tls receive error:", rerr)
+    else
+        local statusLine = reply:match("^[^\r\n]*")
+        print("tls status:", statusLine)
+    end
+
+    conn:close():await()
+
+    print("socket tls client ok")
+end)
+```
+
 ### `udp_echo.lua`
 
 ```lua
--- udp echo service with an overridable bind address through the environment
+-- Udp echo service with an overridable bind address through the environment.
 
 local async = require("async")
 local socket = require("socket")
@@ -122,59 +225,69 @@ async.spawn(function()
 end)
 ```
 
-### `unix_echo.lua`
+### `udp_roundtrip.lua`
 
 ```lua
--- unix-domain echo service over a filesystem path
-
+-- An in-process udp server echoes one datagram back and both sockets close.
 local async = require("async")
 local socket = require("socket")
 
-local path = os.getenv("VARN_SOCKET_PATH") or "/tmp/varn-echo.sock"
+local host = "127.0.0.1"
+local serverPort = 9841
+local clientPort = 9842
+
+async.spawn(function()
+    local server = socket.udp.bind(host, serverPort):await()
+    local packet = server:recvFrom(4096):await()
+    server:sendTo(packet.host, packet.port, "echo:" .. packet.data):await()
+    server:close():await()
+end)
+
+async.run(function()
+    async.sleep(80):await()
+
+    local client = socket.udp.bind(host, clientPort):await()
+    client:sendTo(host, serverPort, "hello"):await()
+    local reply = client:recvFrom(4096):await()
+    print("udp reply:", reply.data, "from", reply.host, reply.port)
+    client:close():await()
+
+    print("socket udp round-trip ok")
+end)
+```
+
+### `unix_roundtrip.lua`
+
+```lua
+-- An in-process unix-domain server echoes one message back to a client and both shut down.
+local async = require("async")
+local socket = require("socket")
+
+local path = os.tmpname() .. ".sock"
 os.remove(path)
 
 async.spawn(function()
-    local listener, lerr = socket.unix.listen(path, 128):await()
-    if lerr then
-        error(lerr)
-    end
-    print("unix echo listening on " .. path)
-    while true do
-        local client, aerr = listener:accept():await()
-        if aerr then
-            print("accept error:", aerr)
-            break
-        end
-        async.spawn(function()
-            local chunk = client:receive(4096):await()
-            client:send("You sent: " .. chunk):await()
-            client:close():await()
-        end)
-    end
+    local listener = socket.unix.listen(path, 16):await()
+    local client = listener:accept():await()
+    local chunk = client:receive(4096):await()
+    client:send("echo:" .. chunk):await()
+    client:close():await()
     listener:close():await()
 end)
-```
-
-### `tls_client.lua`
-
-```lua
--- verified tls connection speaking a minimal http request over it
-
-local async = require("async")
-local socket = require("socket")
 
 async.run(function()
-    local conn, cerr = socket.tls.connect("example.com", 443, { timeoutMs = 5000 }):await()
-    if cerr then
-        error(cerr)
-    end
-    conn:send("GET / HTTP/1.0\r\nHost: example.com\r\nConnection: close\r\n\r\n"):await()
-    local reply = conn:receive(512):await()
-    print("tls status:", reply:match("^[^\r\n]*"))
+    async.sleep(80):await()
+
+    local conn = socket.unix.connect(path):await()
+    conn:send("hello"):await()
+    local reply = conn:receive(4096):await()
+    print("unix reply:", reply)
     conn:close():await()
+    os.remove(path)
+
+    print("socket unix round-trip ok")
 end)
 ```
-
 ## Under the hood
 
 Built on the Poco C++ networking libraries, with every socket multiplexed on a single event-driven I/O thread so a blocked accept or receive never ties up a worker. TLS connections use Poco's `SecureStreamSocket`, sharing the same non-blocking send/receive code path as plaintext TCP once the handshake completes.

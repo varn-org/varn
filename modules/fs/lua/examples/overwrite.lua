@@ -1,4 +1,4 @@
--- writes a file twice and reads back the replaced content
+-- Writes a file twice and reads back the replaced content.
 local async = require("async")
 local fs = require("fs")
 

@@ -22,10 +22,69 @@ Paths are not sandboxed. Confine untrusted input before passing it here. A path 
 
 ## Examples
 
+### `open_handle.lua`
+
+```lua
+-- Streams a file through an open handle writing in chunks and reading them back.
+local async = require("async")
+local fs = require("fs")
+
+async.run(function()
+    local base = fs.mkdtemp("build/_fs_handle_"):await()
+    local path = base .. "/stream.bin"
+
+    -- Writes the file in two chunks through a single handle.
+    local writer = fs.open(path, "w"):await()
+    writer:write("chunk-one "):await()
+    writer:write("chunk-two"):await()
+    writer:close():await()
+
+    -- Reads back in small reads until end of file yields an empty string.
+    local reader = fs.open(path, "r"):await()
+    local parts = {}
+    while true do
+        local chunk = reader:read(4):await()
+        if chunk == "" then
+            break
+        end
+        parts[#parts + 1] = chunk
+    end
+    reader:close():await()
+    print("streamed content:", table.concat(parts))
+
+    fs.removeRecursive(base):await()
+    print("fs open handle ok")
+end)
+```
+
+### `overwrite.lua`
+
+```lua
+-- Writes a file twice and reads back the replaced content.
+local async = require("async")
+local fs = require("fs")
+
+async.run(function()
+    local tmp = "build/_overwrite.txt"
+
+    fs.writeFile(tmp, "first content"):await()
+    local first = fs.readFile(tmp):await()
+    print("after first write:", first)
+
+    fs.writeFile(tmp, "second"):await()
+    local second = fs.readFile(tmp):await()
+    print("after overwrite:", second)
+    assert(second == "second", "overwrite should replace the content")
+
+    os.remove(tmp)
+    print("fs overwrite ok")
+end)
+```
+
 ### `read_write_exists.lua`
 
 ```lua
--- reads writes and probes existence on a path under the repository tree
+-- Writes, reads, and probes existence on a path under the repository tree.
 local async = require("async")
 local fs = require("fs")
 
@@ -52,25 +111,31 @@ end)
 ### `stat_readdir.lua`
 
 ```lua
--- demonstrates stat readdir append copy rename and mkdtemp under a temporary directory
+-- Demonstrates stat readdir append copy rename and mkdtemp under a temporary directory.
 local async = require("async")
 local fs = require("fs")
 
 async.run(function()
+    -- Creates a private scratch directory.
     local base = fs.mkdtemp("build/_fs_extra_"):await()
+    print("scratch dir:", base)
 
     local file = base .. "/note.txt"
     fs.writeFile(file, "hello"):await()
 
+    -- Stats the file for size and kind.
     local info = fs.stat(file):await()
     print("size:", info.size, "isFile:", info.isFile, "mtime:", info.mtime)
 
+    -- Appends to the file.
     fs.append(file, " world"):await()
     print("after append:", fs.readFile(file):await())
 
+    -- Copies then renames the file within the scratch directory.
     fs.copy(file, base .. "/copy.txt"):await()
     fs.rename(base .. "/copy.txt", base .. "/renamed.txt"):await()
 
+    -- Lists the directory entries by name.
     local names = fs.readdir(base):await()
     table.sort(names)
     print("entries:", table.concat(names, ", "))
@@ -79,7 +144,6 @@ async.run(function()
     print("fs extra example ok")
 end)
 ```
-
 ## Under the hood
 
 Built on the C++ standard library filesystem, with reads and writes running on a background I/O thread pool so they never block the event loop.

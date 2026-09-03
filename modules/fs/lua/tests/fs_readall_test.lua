@@ -1,4 +1,4 @@
--- readFile pulls a regular file into memory but refuses a non-regular path like a directory so an endless or unreadable stream can never loop forever
+-- The readFile call pulls a regular file into memory but refuses a non-regular path like a directory, so an endless or unreadable stream can never loop forever.
 local async = require("async")
 local fs = require("fs")
 

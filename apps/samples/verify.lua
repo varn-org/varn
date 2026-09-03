@@ -1,6 +1,6 @@
--- runs every sample the way the mobile apps do, so a sample that only works from a shell never ships.
--- each one gets its own process, because that is what gives it a fresh runtime whose event loop drains
--- before the output is read, exactly like one tap of Run.
+-- Runs every sample the way the mobile apps do, so a sample that only works from a shell never ships.
+-- Each one gets its own process, because that is what gives it a fresh runtime whose event loop drains.
+-- Before the output is read, exactly like one tap of Run.
 local async = require("async")
 local fs = require("fs")
 local json = require("json")
@@ -9,7 +9,7 @@ local process = require("process")
 local dir = arg[0]:match("^(.*)[/\\]") or "."
 local scratch = assert(os.getenv("VARN_TEST_DIR"), "VARN_TEST_DIR is not set")
 
--- the host binary sits at the lowest argument index, below the script and any host option
+-- The host binary sits at the lowest argument index, below the script and any host option.
 local function hostBinary()
     local index = 0
     while arg[index - 1] ~= nil do
@@ -19,8 +19,8 @@ local function hostBinary()
     return arg[index]
 end
 
--- the same harness the apps install: print captured to a file, a writable directory named, and an
--- error inside a background coroutine reported rather than lost
+-- The same harness the apps install: print captured to a file, a writable directory named, and an.
+-- Error inside a background coroutine reported rather than lost.
 local function harness(sample, output, sampleScratch)
     return string.format(
         [[

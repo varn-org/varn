@@ -1,4 +1,4 @@
--- prints one line at each severity level
+-- Prints one line at each severity level.
 local log = require("log")
 
 log.debug("debug", "line", 1)

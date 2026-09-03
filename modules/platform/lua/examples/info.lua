@@ -1,4 +1,4 @@
--- prints host identifiers, system data, and shared library naming hints
+-- Prints host identifiers, system data, and shared library naming hints.
 local p = require("platform")
 
 print("os()         ", p.os())

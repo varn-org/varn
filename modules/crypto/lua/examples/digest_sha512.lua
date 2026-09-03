@@ -1,4 +1,4 @@
--- hashes a string with SHA-512 and prints the start of the hex digest
+-- Hashes a string with SHA-512 and prints the start of the hex digest.
 local crypto = require("crypto")
 
 local hex = crypto.digest("SHA512", "test", "hex")

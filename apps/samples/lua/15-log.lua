@@ -1,4 +1,4 @@
--- leveled logging goes to the host log rather than to print, so in an app these lines land in logcat or the device console instead of the panel below
+-- Leveled logging goes to the host log rather than to print, so in an app these lines land in logcat or the device console instead of the panel below.
 local log = require("log")
 
 log.info("Log", "starting the sample")

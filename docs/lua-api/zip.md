@@ -11,8 +11,9 @@ Create, extract, and list ZIP archives. All three return promises.
 ### `create_extract_roundtrip.lua`
 
 ```lua
--- creates a small archive and unpacks it, verifying the entry round-trips.
+-- Creates a small archive and extracts it, verifying the entry round-trips.
 local async = require("async")
+local fs = require("fs")
 local zip = require("zip")
 
 async.run(function()
@@ -24,7 +25,8 @@ async.run(function()
     f:write("zip-roundtrip\n")
     f:close()
 
-    os.execute("rm -rf '" .. outDir .. "' && mkdir -p '" .. outDir .. "'")
+    fs.removeRecursive(outDir):await()
+    fs.mkdir(outDir):await()
 
     local _, createErr = zip.create(archive, { { file = src, entry = "inside/hello.txt" } }):await()
     assert(not createErr, createErr)
@@ -37,7 +39,7 @@ async.run(function()
     rf:close()
     assert(body == "zip-roundtrip\n", "content mismatch")
 
-    os.execute("rm -rf '" .. outDir .. "'")
+    fs.removeRecursive(outDir):await()
     os.remove(archive)
     os.remove(src)
 
@@ -48,7 +50,7 @@ end)
 ### `list_entries.lua`
 
 ```lua
--- writes a tiny archive and lists its member names.
+-- Writes a tiny archive and lists its member names.
 local async = require("async")
 local zip = require("zip")
 
@@ -82,6 +84,37 @@ async.run(function()
 end)
 ```
 
+### `multi_entry_create.lua`
+
+```lua
+-- Creates an archive holding several entries including a nested path, and lists them back.
+local async = require("async")
+local zip = require("zip")
+
+async.run(function()
+    local src = "_multi_fixture.txt"
+    local archive = "_multi_test.zip"
+
+    local f = assert(io.open(src, "w"), "cannot write fixture")
+    f:write("multi-entry\n")
+    f:close()
+
+    local _, createErr = zip.create(archive, {
+        { file = src, entry = "readme.txt" },
+        { file = src, entry = "docs/guide.txt" },
+        { file = src, entry = "docs/api/reference.txt" },
+    }):await()
+    assert(not createErr, createErr)
+
+    local entries, listErr = zip.list(archive):await()
+    assert(not listErr, listErr)
+
+    os.remove(archive)
+    os.remove(src)
+
+    print("zip multi-entry create ok: " .. table.concat(entries, ", "))
+end)
+```
 ## Under the hood
 
 Archives are handled by the libzip C++ library, with zlib for compression.

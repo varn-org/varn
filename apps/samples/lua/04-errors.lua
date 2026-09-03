@@ -1,4 +1,4 @@
--- pcall turns a runtime error into a value rather than unwinding
+-- Pcall turns a runtime error into a value rather than unwinding.
 local ok, err = pcall(function()
     error("something went wrong")
 end)

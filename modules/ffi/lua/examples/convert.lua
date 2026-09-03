@@ -1,4 +1,4 @@
--- fills a buffer, converts a cdata number to lua, takes a pointer address, reads errno, registers a gc finalizer, and prints the backend version
+-- Fills a buffer, converts a cdata number to lua, takes a pointer address, reads errno, registers a gc finalizer, and prints the backend version.
 local ffi = require("ffi")
 
 ffi.cdef [[

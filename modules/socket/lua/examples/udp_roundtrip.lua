@@ -1,4 +1,4 @@
--- an in-process udp server echoes one datagram back and both sockets close
+-- An in-process udp server echoes one datagram back and both sockets close.
 local async = require("async")
 local socket = require("socket")
 

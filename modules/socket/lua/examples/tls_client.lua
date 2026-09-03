@@ -1,4 +1,4 @@
--- opens a verified tls connection and speaks a minimal http request over it
+-- Opens a verified tls connection and speaks a minimal http request over it.
 local async = require("async")
 local socket = require("socket")
 

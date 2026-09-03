@@ -1,8 +1,8 @@
--- concurrency and stress for the async runtime where many spawned coroutines, nested combinators, and heavy sleep churn all settle without hanging or leaking work on the event loop
+-- Concurrency and stress for the async runtime where many spawned coroutines, nested combinators, and heavy sleep churn all settle without hanging or leaking work on the event loop.
 local async = require("async")
 
 async.run(function()
-    -- fan out many independent coroutines and join them in order
+    -- Fan out many independent coroutines and join them in order.
     local n = 500
     local tasks = {}
     for i = 1, n do
@@ -21,7 +21,7 @@ async.run(function()
     end
     assert(sum == n * (n + 1) / 2, "every task result should be accounted for")
 
-    -- nested combinators settle without deadlock, the fast branch winning the race
+    -- Nested combinators settle without deadlock, the fast branch winning the race.
     local nested = async.race({
         async.all({ async.promise(function() return 1 end), async.promise(function() return 2 end) }),
         async.timeout(async.promise(function()
@@ -31,7 +31,7 @@ async.run(function()
     }):await()
     assert(type(nested) == "table" and nested[1] == 1 and nested[2] == 2, "race should settle with the fast all branch")
 
-    -- mapLimit under a tight limit over many items with interleaved sleeps stays bounded and complete
+    -- Under a tight limit over many items with interleaved sleeps, mapLimit stays bounded and complete.
     local items = {}
     for i = 1, 300 do
         items[i] = i
@@ -56,7 +56,7 @@ async.run(function()
     end
     assert(peak <= 4, "mapLimit stress should never exceed the limit")
 
-    -- a spawned coroutine that errors is isolated and does not take down its siblings
+    -- A spawned coroutine that errors is isolated and does not take down its siblings.
     local settled = async.allSettled({
         async.promise(function() error("boom") end),
         async.promise(function() return "ok" end),

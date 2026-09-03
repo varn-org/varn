@@ -1,4 +1,4 @@
--- produces a keyed hmac in raw binary form and checks its length
+-- Produces a keyed hmac in raw binary form and checks its length.
 local crypto = require("crypto")
 
 local raw = crypto.hmac("SHA256", "secret-key", "message", "raw")

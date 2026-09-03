@@ -1,4 +1,4 @@
--- arrays iterate in order, maps iterate by key
+-- Arrays iterate in order, maps iterate by key.
 local fruits = { "apple", "banana", "cherry" }
 
 for index, name in ipairs(fruits) do

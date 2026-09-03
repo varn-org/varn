@@ -1,4 +1,4 @@
--- the client consumes a streaming sse response chunk by chunk through client.stream
+-- The client consumes a streaming sse response chunk by chunk through client.stream.
 local async = require("async")
 local http = require("http")
 
@@ -7,7 +7,7 @@ local base = "http://127.0.0.1:" .. port
 
 local app = http.createApp()
 
--- streams a few sse events then closes so the client sees a finite body delivered in pieces
+-- Streams a few sse events then closes so the client sees a finite body delivered in pieces.
 app:get("/events", function(ctx)
     local stream = ctx:sse()
     stream:send("hello")

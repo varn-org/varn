@@ -1,4 +1,4 @@
--- calls libc puts through the native ffi stack
+-- Calls libc puts through the native ffi stack.
 local ffi = require("ffi")
 
 ffi.cdef [[

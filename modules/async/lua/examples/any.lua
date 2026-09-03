@@ -1,4 +1,4 @@
--- resolves with the first input to succeed with async.any, ignoring earlier rejections
+-- Resolves with the first input to succeed with async.any, ignoring earlier rejections.
 local async = require("async")
 
 local function resolveAfter(ms, value)

@@ -1,4 +1,4 @@
--- what the host is, and which engine is running the script
+-- What the host is, and which engine is running the script.
 local platform = require("platform")
 
 print("os:", platform.os())

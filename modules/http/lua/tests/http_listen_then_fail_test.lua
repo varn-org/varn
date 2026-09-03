@@ -1,4 +1,4 @@
--- a script that fails after listen leaves its accept watcher armed, and that handler holds lua registry refs, so the runtime must release it while the state is still open instead of crashing on the way out
+-- A script that fails after listen leaves its accept watcher armed, and that handler holds lua registry refs, so the runtime must release it while the state is still open instead of crashing on the way out.
 local async = require("async")
 local fs = require("fs")
 local platform = require("platform")
@@ -9,7 +9,7 @@ if not process.available then
     return
 end
 
--- cmd drops the outer quote pair of a /c string, so a windows command needs one more around the whole thing
+-- Cmd drops the outer quote pair of a /c string, so a windows command needs one more around the whole thing.
 local function shellCommand(program, argument)
     local quoted = string.format('"%s" "%s"', program, argument)
     if platform.os() == "windows" then
@@ -37,7 +37,7 @@ async.run(function()
     local result = process.exec(shellCommand(binary, childPath)):await()
     local output = result.stdout .. result.stderr
 
-    -- a signalled child is reported as 128 plus the signal, so a segmentation fault arrives as 139
+    -- A signalled child is reported as 128 plus the signal, so a segmentation fault arrives as 139.
     assert(result.code == 1, "the child should exit with the script error, got " .. result.code .. " and output: " .. output)
     assert(not output:find("Fatal signal", 1, true), "the child must not crash while tearing down, output: " .. output)
     assert(output:find("deliberate failure after listen", 1, true), "the child should report the script error, output: " .. output)

@@ -21,10 +21,22 @@ Element names are sanitized and text is escaped on encode. The parser does not l
 
 ## Examples
 
+### `aliases.lua`
+
+```lua
+-- Parse and stringify are aliases of decode and encode.
+local xml = require("xml")
+
+local node = xml.parse('<user id="1"><name>Lua</name></user>')
+print(node.name, node.attributes.id, node.children[1].text)
+
+print(xml.stringify({ name = "ok", text = "done" }))
+```
+
 ### `encode_decode.lua`
 
 ```lua
--- xml: build a document from the node model and parse it back.
+-- Build a document from the node model and parse it back.
 local xml = require("xml")
 
 local doc = xml.encode({
@@ -43,10 +55,37 @@ local node = xml.decode(doc)
 print(node.name, node.children[1].attributes.id, node.children[1].children[1].text)
 ```
 
+### `escaping.lua`
+
+```lua
+-- Text and attribute specials are escaped and invalid names are sanitized.
+local xml = require("xml")
+
+-- Special characters in text and attributes are escaped on encode.
+print(xml.encode({ name = "msg", attributes = { note = 'a & b "c"' }, text = "x < y > z" }))
+
+-- An invalid element name is sanitized so it cannot break the document.
+print(xml.encode({ name = "bad name!", text = "ok" }))
+
+-- Escaped values round-trip back to their original form.
+local back = xml.decode(xml.encode({ name = "n", text = "a < b & c" }))
+print(back.text)
+```
+
+### `indent.lua`
+
+```lua
+-- Indent sets the indentation width in spaces.
+local xml = require("xml")
+
+local node = { name = "root", children = { { name = "item", text = "value" } } }
+print(xml.encode(node, { indent = 4 }))
+```
+
 ### `roundtrip.lua`
 
 ```lua
--- xml: parse a document, walk its nodes, and re-encode it.
+-- Parse a document, walk its nodes, and re-encode it.
 local xml = require("xml")
 
 local original = '<note priority="high"><to>Lua</to><from>C++</from><body>hello &amp; bye</body></note>'
@@ -59,7 +98,6 @@ end
 
 print(xml.encode(node))
 ```
-
 ## Under the hood
 
 Parsing and serialization use the pugixml C++ library.

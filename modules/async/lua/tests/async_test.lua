@@ -1,4 +1,4 @@
--- async run executes as a coroutine, sleep yields, and promises report completion
+-- Async run executes as a coroutine, sleep yields, and promises report completion.
 local async = require("async")
 
 async.run(function()

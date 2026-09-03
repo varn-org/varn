@@ -1,4 +1,4 @@
--- prints semver baked in at configure time for the host binary
+-- Prints semver baked in at configure time for the host binary.
 local p = require("platform")
 
 local v = p.hostVersion()

@@ -1,4 +1,4 @@
--- prints the shared library prefix and suffix pieces for the host
+-- Prints the shared library prefix and suffix pieces for the host.
 local p = require("platform")
 
 local prefix = p.libPrefix()

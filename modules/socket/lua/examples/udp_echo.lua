@@ -1,4 +1,4 @@
--- udp echo service with an overridable bind address through the environment
+-- Udp echo service with an overridable bind address through the environment.
 
 local async = require("async")
 local socket = require("socket")

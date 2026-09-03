@@ -1,4 +1,4 @@
--- an in-process server answers a route and a 404, exercised through the client
+-- An in-process server answers a route and a 404, exercised through the client.
 local async = require("async")
 local http = require("http")
 

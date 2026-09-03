@@ -1,4 +1,4 @@
--- the http client needs the network, so this one fails without a connection
+-- The http client needs the network, so this one fails without a connection.
 local async = require("async")
 local http = require("http")
 

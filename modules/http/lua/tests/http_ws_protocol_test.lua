@@ -1,4 +1,4 @@
--- websocket control frames where ping auto-pongs, a fragmented message reassembles, close is echoed, and an unmasked or reserved-bit frame drops the connection
+-- Websocket control frames where ping auto-pongs, a fragmented message reassembles, close is echoed, and an unmasked or reserved-bit frame drops the connection.
 local async = require("async")
 local http = require("http")
 local socket = require("socket")
@@ -7,7 +7,7 @@ local crypto = require("crypto")
 local host = "127.0.0.1"
 local port = 39828
 
--- builds a client frame with an explicit opcode, fin flag and masking
+-- Builds a client frame with an explicit opcode, fin flag and masking.
 local function frame(opcode, payload, fin, masked)
     fin = fin ~= false
     masked = masked ~= false
@@ -26,7 +26,7 @@ local function frame(opcode, payload, fin, masked)
     return header .. mask .. table.concat(out)
 end
 
--- parses one unmasked server frame, returning its opcode and payload plus the leftover bytes
+-- Parses one unmasked server frame, returning its opcode and payload plus the leftover bytes.
 local function parseFrame(buffer)
     if #buffer < 2 then
         return nil, buffer
@@ -94,32 +94,32 @@ local function recvFrame(conn)
 end
 
 async.run(function()
-    -- a ping is answered with a pong carrying the same payload
+    -- A ping is answered with a pong carrying the same payload.
     local c = openWs()
     c:send(frame(0x9, "hi")):await()
     local pong = recvFrame(c)
     assert(pong.opcode == 0xA and pong.payload == "hi", "a ping should be answered with a matching pong")
 
-    -- a fragmented text message reassembles before reaching the handler
+    -- A fragmented text message reassembles before reaching the handler.
     c:send(frame(0x1, "he", false, true)):await()
     c:send(frame(0x0, "llo", true, true)):await()
     local echoed = recvFrame(c)
     assert(echoed.opcode == 0x1 and echoed.payload == "hello", "fragments should reassemble into one message")
 
-    -- a close frame is echoed to complete the close handshake
+    -- A close frame is echoed to complete the close handshake.
     c:send(frame(0x8, string.char(0x03, 0xE8))):await()
     local closed = recvFrame(c)
     assert(closed.opcode == 0x8, "the server should echo a close frame")
     c:close():await()
 
-    -- an unmasked client frame is a protocol error and drops the connection
+    -- An unmasked client frame is a protocol error and drops the connection.
     local u = openWs()
     u:send(frame(0x1, "nope", true, false)):await()
     local uData, uErr = u:receive(4096):await()
     assert(uData == "" or uErr, "an unmasked frame should drop the connection")
     u:close():await()
 
-    -- a reserved-bit frame is a protocol error and drops the connection
+    -- A reserved-bit frame is a protocol error and drops the connection.
     local r = openWs()
     local rsv = string.char(0xC1, 0x80 + 2) .. crypto.randomBytes(4) .. "xx"
     r:send(rsv):await()

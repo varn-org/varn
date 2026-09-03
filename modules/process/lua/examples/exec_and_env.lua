@@ -1,4 +1,4 @@
--- runs a command and prints its capture, environment, and working directory
+-- Runs a command and prints its capture, environment, and working directory.
 local async = require("async")
 local process = require("process")
 

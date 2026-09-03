@@ -1,4 +1,4 @@
--- builds example filenames for a short logical library name
+-- Builds example filenames for a short logical library name.
 local p = require("platform")
 
 local name = "z"

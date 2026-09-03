@@ -1,4 +1,4 @@
--- combines async file reads hashing and static responses on one host from the repo root
+-- Combines async file reads hashing and static responses on one host from the repo root.
 local http = require("http")
 local async = require("async")
 local fs = require("fs")

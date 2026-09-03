@@ -1,4 +1,4 @@
--- a metatable gives a table operators and methods
+-- A metatable gives a table operators and methods.
 local Vector = {}
 Vector.__index = Vector
 

@@ -1,4 +1,4 @@
--- prints the pointer size and byte order of the host build
+-- Prints the pointer size and byte order of the host build.
 local p = require("platform")
 
 print("pointerSize()", p.pointerSize())

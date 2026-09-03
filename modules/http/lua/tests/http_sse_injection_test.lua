@@ -1,4 +1,4 @@
--- an sse event name or comment occupies a whole line, so a line break in one would forge every field after it, and a payload carrying a bare cr must open a new data field rather than escape the frame
+-- An sse event name or comment occupies a whole line, so a line break in one would forge every field after it, and a payload carrying a bare cr must open a new data field rather than escape the frame.
 local async = require("async")
 local http = require("http")
 local socket = require("socket")
@@ -51,18 +51,18 @@ local function readStream(path)
 end
 
 async.run(function()
-    -- an event name carrying a break is refused, so no forged event ever reaches the wire
+    -- An event name carrying a break is refused, so no forged event ever reaches the wire.
     local named = readStream("/named")
     assert(named:find("rejected", 1, true), "an event name with a line break must be refused")
     assert(not named:find("event: forged", 1, true), "the forged event must never be written")
     assert(not named:find("{\"role\":\"admin\"}", 1, true), "the forged payload must never be written")
 
-    -- a comment carrying a break is refused for the same reason
+    -- A comment carrying a break is refused for the same reason.
     local commented = readStream("/comment")
     assert(commented:find("rejected", 1, true), "a comment with a line break must be refused")
     assert(not commented:find("data: forged", 1, true), "the forged data field must never be written")
 
-    -- a bare carriage return inside a payload becomes another data field instead of a new record
+    -- A bare carriage return inside a payload becomes another data field instead of a new record.
     local carriage = readStream("/carriage")
     assert(carriage:find("data: a", 1, true), "the payload before the carriage return stays a data field")
     assert(carriage:find("data: id: 99", 1, true), "text after a carriage return is escaped into its own data field")

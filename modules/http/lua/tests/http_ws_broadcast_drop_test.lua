@@ -1,4 +1,4 @@
--- broadcasting to a set of connections where one has stopped draining drops only that peer, and the surviving connections still receive the message
+-- Broadcasting to a set of connections where one has stopped draining drops only that peer, and the surviving connections still receive the message.
 local async = require("async")
 local http = require("http")
 local socket = require("socket")
@@ -7,7 +7,7 @@ local crypto = require("crypto")
 local host = "127.0.0.1"
 local port = 39832
 
--- each broadcast is large enough that a peer which never reads passes the 16 mb outbound cap within a handful of rounds
+-- Each broadcast is large enough that a peer which never reads passes the 16 mb outbound cap within a handful of rounds.
 local chunkBytes = 1024 * 1024
 local rounds = 24
 local payload = string.rep("b", chunkBytes)
@@ -89,7 +89,7 @@ local function openWs()
 end
 
 async.run(function()
-    -- several peers connect and never read a byte, so each broadcast piles up in their send queues
+    -- Several peers connect and never read a byte, so each broadcast piles up in their send queues.
     local stalled = {}
     for i = 1, stalledPeers do
         stalled[i] = (openWs())
@@ -97,7 +97,7 @@ async.run(function()
 
     local reader, buffer = openWs()
 
-    -- the reader drives the broadcasts and drains its own copy, so it must survive every peer the server drops
+    -- The reader drives the broadcasts and drains its own copy, so it must survive every peer the server drops.
     local received = 0
     for _ = 1, rounds do
         reader:send(clientFrame("go")):await()

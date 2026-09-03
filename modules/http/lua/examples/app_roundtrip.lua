@@ -1,4 +1,4 @@
--- drives an in-process app with the client to show routing, body parsing and a json response then exits, with the server on its own threads so the script issues its requests inside async.run and finishes cleanly
+-- Drives an in-process app with the client to show routing, body parsing and a json response then exits, with the server on its own threads so the script issues its requests inside async.run and finishes cleanly.
 local async = require("async")
 local http = require("http")
 
@@ -7,12 +7,12 @@ local base = "http://127.0.0.1:" .. port
 
 local app = http.createApp()
 
--- a path parameter constrained to digits feeds a json response
+-- A path parameter constrained to digits feeds a json response.
 app:get("/users/:id", function(ctx)
     ctx:json({ id = ctx.params.id })
 end):where("id", "int")
 
--- json body parsing detects the content type and hands back a parsed table
+-- Json body parsing detects the content type and hands back a parsed table.
 app:post("/echo", function(ctx)
     ctx:json({ received = ctx:body() })
 end)

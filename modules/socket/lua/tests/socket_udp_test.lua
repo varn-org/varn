@@ -1,4 +1,4 @@
--- an in-process udp echo server round-trips a datagram back to a client
+-- An in-process udp echo server round-trips a datagram back to a client.
 local async = require("async")
 local socket = require("socket")
 
@@ -6,7 +6,7 @@ local host = "127.0.0.1"
 local serverPort = 9921
 local clientPort = 9922
 
--- server binds, receives one datagram, echoes it back to the sender, then closes
+-- Server binds, receives one datagram, echoes it back to the sender, then closes.
 async.spawn(function()
     local server, berr = socket.udp.bind(host, serverPort):await()
     assert(not berr, berr)
@@ -19,7 +19,7 @@ async.spawn(function()
     server:close():await()
 end)
 
--- client binds on its own port, sends to the server, then verifies the echo
+-- Client binds on its own port, sends to the server, then verifies the echo.
 async.run(function()
     async.sleep(50):await()
 

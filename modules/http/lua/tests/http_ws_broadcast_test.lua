@@ -1,4 +1,4 @@
--- websocket broadcast and rooms where two clients upgrade, join a room, and a message from one fans out to all members
+-- Websocket broadcast and rooms where two clients upgrade, join a room, and a message from one fans out to all members.
 local async = require("async")
 local http = require("http")
 local socket = require("socket")
@@ -7,7 +7,7 @@ local crypto = require("crypto")
 local host = "127.0.0.1"
 local port = 39827
 
--- builds a masked client text frame, the only framing the server accepts from a client
+-- Builds a masked client text frame, the only framing the server accepts from a client.
 local function clientFrame(payload)
     local mask = crypto.randomBytes(4)
     local header = string.char(0x81)
@@ -25,7 +25,7 @@ local function clientFrame(payload)
     return header .. mask .. table.concat(masked)
 end
 
--- parses one unmasked server text frame out of a buffer, returning the payload and the leftover bytes
+-- Parses one unmasked server text frame out of a buffer, returning the payload and the leftover bytes.
 local function parseServerFrame(buffer)
     if #buffer < 2 then
         return nil, buffer
@@ -47,7 +47,7 @@ end
 
 local app = http.createApp()
 
--- every connection joins a shared room on open and rebroadcasts any message to that room
+-- Every connection joins a shared room on open and rebroadcasts any message to that room.
 app:ws("/room", {
     open = function(conn)
         conn:join("lobby")
@@ -57,7 +57,7 @@ app:ws("/room", {
     end,
 })
 
--- a plain endpoint exercises the path-scoped broadcast
+-- A plain endpoint exercises the path-scoped broadcast.
 app:ws("/feed", {
     open = function() end,
     message = function(_, data)
@@ -67,7 +67,7 @@ app:ws("/feed", {
 
 app:listen({ host = host, port = port })
 
--- opens a websocket and returns the connected socket past the handshake
+-- Opens a websocket and returns the connected socket past the handshake.
 local function openWs(path)
     local conn = socket.tcp.connect(host, port):await()
     local key = crypto.base64Encode(crypto.randomBytes(16))
@@ -83,7 +83,7 @@ local function openWs(path)
     }, "\r\n")
     conn:send(handshake):await()
 
-    -- read until the handshake response terminator, leaving any frame bytes untouched
+    -- Read until the handshake response terminator, leaving any frame bytes untouched.
     local buffer = ""
     while not buffer:find("\r\n\r\n", 1, true) do
         local chunk = conn:receive(4096):await()
@@ -94,7 +94,7 @@ local function openWs(path)
     return conn
 end
 
--- waits for one server text frame on a socket
+-- Waits for one server text frame on a socket.
 local function recvFrame(conn)
     local buffer = ""
     while true do
@@ -109,7 +109,7 @@ local function recvFrame(conn)
 end
 
 async.run(function()
-    -- two members of the same room both receive a broadcast triggered by one of them
+    -- Two members of the same room both receive a broadcast triggered by one of them.
     local a = openWs("/room")
     local b = openWs("/room")
     async.sleep(50):await()
@@ -118,7 +118,7 @@ async.run(function()
     assert(recvFrame(a) == "room:hi", "broadcaster did not receive room message")
     assert(recvFrame(b) == "room:hi", "peer did not receive room message")
 
-    -- a path-scoped broadcast reaches every connection on that ws path
+    -- A path-scoped broadcast reaches every connection on that ws path.
     local c = openWs("/feed")
     local d = openWs("/feed")
     async.sleep(50):await()

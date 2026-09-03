@@ -1,10 +1,10 @@
--- server-sent events plus gzip with a live clock stream and a large json endpoint the server compresses automatically
+-- Server-sent events plus gzip with a live clock stream and a large json endpoint the server compresses automatically.
 local http = require("http")
 local async = require("async")
 
 local app = http.createApp()
 
--- the /clock route streams sse events a browser reads through EventSource
+-- The /clock route streams sse events a browser reads through EventSource.
 app:get("/clock", function(ctx)
     local stream = ctx:sse()
     for i = 1, 10 do
@@ -16,7 +16,7 @@ app:get("/clock", function(ctx)
     stream:close()
 end)
 
--- a large json body is gzipped when the client sends an Accept-Encoding of gzip
+-- A large json body is gzipped when the client sends an Accept-Encoding of gzip.
 app:get("/data", function(ctx)
     local rows = {}
     for i = 1, 500 do
@@ -38,7 +38,7 @@ es.addEventListener("tick", e => out.textContent += e.data + "\n");
 ]])
 end)
 
--- gzip is on by default and compress = false on listen turns it off
+-- Gzip is on by default and compress = false on listen turns it off.
 app:listen({
     host = "0.0.0.0",
     port = tonumber(os.getenv("VARN_PORT") or "3000"),

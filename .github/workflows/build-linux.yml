@@ -57,6 +57,10 @@ jobs:
       - name: Run Lua test suite
         run: python3 varn.py test --build-dir build/release
 
+      # the reference pages inline every example verbatim, so this fails the moment one drifts from the file on disk
+      - name: Verify the reference pages match the examples
+        run: python3 varn.py docs --check
+
       # the mobile apps run these through a harness rather than a shell, so they are checked the same way
       - name: Verify the app samples
         run: VARN_TEST_DIR=$(mktemp -d) build/release/bin/varn apps/samples/verify.lua

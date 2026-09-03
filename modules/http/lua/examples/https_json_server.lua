@@ -1,4 +1,4 @@
--- serves json over tls using files in the working directory or varn tls env variables
+-- Serves json over tls using files in the working directory or varn tls env variables.
 local http = require("http")
 
 local server = http.createServer(function(req, res)

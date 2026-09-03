@@ -1,4 +1,4 @@
--- percent-encodes a value for a query string and decodes it back, available in every build including the browser
+-- Percent-encodes a value for a query string and decodes it back, available in every build including the browser.
 local http = require("http")
 
 local encoded = http.urlEncode("hello world & more")

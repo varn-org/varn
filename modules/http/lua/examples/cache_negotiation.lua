@@ -1,15 +1,15 @@
--- caching and content negotiation covering cache-control, etag revalidation, and api-vs-html responses from one route
+-- Caching and content negotiation covering cache-control, etag revalidation, and api-vs-html responses from one route.
 local http = require("http")
 
 local app = http.createApp()
 
--- a long-lived cached resource sets cache-control plus an etag the client can revalidate against
+-- A long-lived cached resource sets cache-control plus an etag the client can revalidate against.
 app:get("/profile/:id", function(ctx)
     local id = ctx.params.id
     ctx:cache({ maxAge = 300, private = true })
     ctx:etag("profile-" .. id .. "-v3")
 
-    -- if etag matched the request's If-None-Match, the helper already answered 304 and ended the response
+    -- If etag matched the request's If-None-Match, the helper already answered 304 and ended the response.
     if ctx.req.headers["If-None-Match"] then
         return
     end
@@ -17,7 +17,7 @@ app:get("/profile/:id", function(ctx)
     ctx:json({ id = id, name = "User " .. id })
 end)
 
--- the same path serves html to a browser and json to an api client based on Accept
+-- The same path serves html to a browser and json to an api client based on Accept.
 app:get("/report", function(ctx)
     local best = ctx:accepts("html", "json")
     if best == "json" then
@@ -27,7 +27,7 @@ app:get("/report", function(ctx)
     end
 end)
 
--- a never-cache endpoint for volatile data
+-- A never-cache endpoint for volatile data.
 app:get("/now", function(ctx)
     ctx:cache({ noStore = true }):json({ time = os.time() })
 end)

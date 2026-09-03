@@ -1,4 +1,4 @@
--- platform host identifiers and system data are present and well-formed
+-- Platform host identifiers and system data are present and well-formed.
 local platform = require("platform")
 
 local osId = platform.os()

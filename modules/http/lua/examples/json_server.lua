@@ -1,4 +1,4 @@
--- serves small json payloads plus static files from the public tree
+-- Serves small json payloads plus static files from the public tree.
 local http = require("http")
 
 local server = http.createServer(function(req, res)

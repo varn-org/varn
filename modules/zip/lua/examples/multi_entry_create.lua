@@ -1,4 +1,4 @@
--- creates an archive holding several entries including a nested path, and lists them back
+-- Creates an archive holding several entries including a nested path, and lists them back.
 local async = require("async")
 local zip = require("zip")
 

@@ -1,4 +1,4 @@
--- creates an archive, lists it, extracts it, and verifies the entry round-trips
+-- Creates an archive, lists it, extracts it, and verifies the entry round-trips.
 local async = require("async")
 
 local dir = assert(os.getenv("VARN_TEST_DIR"), "VARN_TEST_DIR is not set; run tests with: python3 varn.py test")

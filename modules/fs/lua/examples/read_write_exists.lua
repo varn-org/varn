@@ -1,4 +1,4 @@
--- writes, reads, and probes existence on a path under the repository tree
+-- Writes, reads, and probes existence on a path under the repository tree.
 local async = require("async")
 local fs = require("fs")
 

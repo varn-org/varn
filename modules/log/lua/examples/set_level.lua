@@ -1,4 +1,4 @@
--- raises the minimum level so lines below the floor are dropped
+-- Raises the minimum level so lines below the floor are dropped.
 local log = require("log")
 
 log.setLevel("warn")

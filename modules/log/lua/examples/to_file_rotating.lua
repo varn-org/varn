@@ -1,4 +1,4 @@
--- adds a rotating file sink that rolls at 5 MB keeping 5 files
+-- Adds a rotating file sink that rolls at 5 MB keeping 5 files.
 local log = require("log")
 
 log.toFile("varn-rotating.log", true)

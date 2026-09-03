@@ -23,10 +23,53 @@ This calls arbitrary native code by design. Treat declarations and inputs as tru
 
 ## Examples
 
+### `buffer.lua`
+
+```lua
+-- Allocates a c buffer, copies bytes in, casts it, and reads it back via ffi.string.
+local ffi = require("ffi")
+
+local buf = ffi.new("char[?]", 6)
+ffi.copy(buf, "world")
+
+local ptr = ffi.cast("const char *", buf)
+print("ffi buffer length:", ffi.sizeof("char[6]"))
+print("ffi buffer text:", ffi.string(ptr))
+print("ffi buffer prefix:", ffi.string(buf, 3))
+```
+
+### `convert.lua`
+
+```lua
+-- Fills a buffer, converts a cdata number to lua, takes a pointer address, reads errno, registers a gc finalizer, and prints the backend version.
+local ffi = require("ffi")
+
+ffi.cdef [[
+    int abs(int n);
+]]
+
+local buf = ffi.new("unsigned char[?]", 4)
+ffi.fill(buf, 4, 0x41)
+print("ffi convert fill:", ffi.string(buf, 4))
+
+local n = ffi.new("int", 65)
+print("ffi convert tonumber:", ffi.tonumber(n))
+print("ffi convert addressof:", ffi.addressof(buf) ~= ffi.nullptr)
+
+ffi.C.abs(-1)
+print("ffi convert errno is number:", type(ffi.errno()) == "number")
+
+local owned = ffi.new("char[?]", 1)
+ffi.gc(owned, function() end)
+
+print("ffi convert version:", ffi.VERSION)
+print("ffi convert ok")
+```
+
 ### `puts.lua`
 
 ```lua
--- exercises libc puts through the native ffi stack when that build links it
+-- Calls libc puts through the native ffi stack.
 local ffi = require("ffi")
 
 ffi.cdef [[
@@ -34,14 +77,12 @@ ffi.cdef [[
 ]]
 
 ffi.C.puts("ffi: hello from libc puts")
-
 ```
 
 ### `sqlite3.lua`
 
 ```lua
--- walks sqlite create and select with native ffi bindings, then exits explicitly.
--- the library name is resolved per platform through platform.libraryFilename.
+-- Runs sqlite create and select through native ffi bindings with the library name resolved by platform.libraryFilename.
 
 local ffi = require("ffi")
 local platform = require("platform")
@@ -230,6 +271,35 @@ must(S.sqlite3_close(db), "close")
 print("ffi sqlite3: ok")
 ```
 
+### `struct.lua`
+
+```lua
+-- Declares a c struct, attaches methods with metatype, and inspects its layout with typeof, sizeof, offsetof, and istype.
+local ffi = require("ffi")
+
+ffi.cdef [[
+    typedef struct { int x; int y; } point_t;
+]]
+
+local point_t = ffi.typeof("point_t")
+ffi.metatype(point_t, {
+    __index = {
+        sum = function(self)
+            return self.x + self.y
+        end,
+    },
+})
+
+local p = ffi.new(point_t)
+p.x = 3
+p.y = 4
+
+print("ffi struct sizeof:", ffi.sizeof("point_t"))
+print("ffi struct offsetof y:", ffi.offsetof("point_t", "y"))
+print("ffi struct istype:", ffi.istype(point_t, p))
+print("ffi struct sum:", p:sum())
+print("ffi struct ok")
+```
 ## Under the hood
 
 Built on libffi.

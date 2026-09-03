@@ -1,4 +1,4 @@
--- json maps onto lua tables in both directions
+-- Json maps onto lua tables in both directions.
 local json = require("json")
 
 local encoded = json.encode({

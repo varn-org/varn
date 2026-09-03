@@ -1,4 +1,4 @@
--- plain lua, no modules: recursion, string.format and a loop
+-- Plain lua, no modules: recursion, string.format and a loop.
 local function fib(n)
     if n < 2 then
         return n

@@ -1,4 +1,4 @@
--- awaits several sleeps in sequence and prints the order they complete in
+-- Awaits several sleeps in sequence and prints the order they complete in.
 local async = require("async")
 
 async.spawn(function()

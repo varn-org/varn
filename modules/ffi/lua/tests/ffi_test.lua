@@ -1,4 +1,4 @@
--- declares a libc symbol and calls it for a deterministic result
+-- Declares a libc symbol and calls it for a deterministic result.
 local ffi = require("ffi")
 
 ffi.cdef [[

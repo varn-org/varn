@@ -1,10 +1,10 @@
--- an archive names each entry independently of where the file sits on disk
+-- An archive names each entry independently of where the file sits on disk.
 local async = require("async")
 local fs = require("fs")
 local zip = require("zip")
 
 async.run(function()
-    -- a sandboxed app has no writable working directory, so the host names the one place a sample may write
+    -- A sandboxed app has no writable working directory, so the host names the one place a sample may write.
     local dir = assert(SAMPLE_DIR or os.getenv("VARN_SAMPLE_DIR"), "set VARN_SAMPLE_DIR to a writable directory")
     local archive = dir .. "/sample.zip"
 

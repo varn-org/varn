@@ -1,4 +1,4 @@
--- asserts only on the length fields returned for random byte requests
+-- Asserts only on the length fields returned for random byte requests.
 local crypto = require("crypto")
 
 local b16 = crypto.randomBytes(16)

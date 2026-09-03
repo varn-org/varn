@@ -1,4 +1,4 @@
--- maps a list with at most limit promises in flight with async.mapLimit, preserving order
+-- Maps a list with at most limit promises in flight with async.mapLimit, preserving order.
 local async = require("async")
 
 async.run(function()
