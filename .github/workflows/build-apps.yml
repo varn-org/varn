@@ -107,12 +107,14 @@ jobs:
         run: |
           # xcpretty exits zero on a failed build, so without pipefail the step reports success on a broken app
           set -o pipefail
+          # A generic simulator destination builds arm64 and x86_64 into one products directory, where the two race over the same generated module and one of them loses.
           xcodebuild build \
             -project Varn.xcodeproj \
             -scheme Varn \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
+            ARCHS=$(uname -m) \
             CODE_SIGNING_ALLOWED=NO | xcpretty
 
       - name: Verify the app bundle
