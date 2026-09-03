@@ -52,8 +52,10 @@ targets:
         # the default launch screen needs no storyboard, and the style is pinned so the system never repaints the app
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
+        # ipad requires every orientation unless the app declares it needs full screen
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
 

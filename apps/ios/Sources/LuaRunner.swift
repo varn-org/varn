@@ -22,14 +22,12 @@ final class LuaRunner {
 
     var version: String { VarnRuntime.version }
 
-    func run(source: String) -> RunOutcome {
+    func run(source: String, onLine: @escaping (String, Bool) -> Void) -> RunOutcome {
         let scriptURL = workDirectory.appendingPathComponent("sample.lua")
-        let outputURL = workDirectory.appendingPathComponent("output.txt")
         let scratchURL = workDirectory.appendingPathComponent("scratch", isDirectory: true)
 
         do {
             try source.write(to: scriptURL, atomically: true, encoding: .utf8)
-            try "".write(to: outputURL, atomically: true, encoding: .utf8)
             try? FileManager.default.removeItem(at: scratchURL)
             try FileManager.default.createDirectory(at: scratchURL, withIntermediateDirectories: true)
         } catch {
@@ -44,20 +42,32 @@ final class LuaRunner {
         current = runtime
         lock.unlock()
 
-        let code = runtime.run(source: harness(script: scriptURL, output: outputURL, scratch: scratchURL), chunkName: "=harness")
+        // the console fills as the chunk prints rather than after it finishes, which matters for a sample that waits on the network
+        var captured = ""
+        runtime.register("emit") { line in
+            let isError = line.hasPrefix("error: ")
+            captured += line + "\n"
+            DispatchQueue.main.async { onLine(line, isError) }
+            return nil
+        }
+
+        let code = runtime.run(source: harness(script: scriptURL, scratch: scratchURL), chunkName: "=harness")
 
         lock.lock()
         current = nil
         lock.unlock()
         runtime.close()
 
-        let captured = (try? String(contentsOf: outputURL, encoding: .utf8)) ?? ""
-        // the harness reports a lua error through the output, so a non-zero code means the harness itself failed
-        let text = captured.isEmpty && code != 0 ? "engine exited with code \(code)\n" : captured
+        if captured.isEmpty && code != 0 {
+            let line = "engine exited with code \(code)"
+            DispatchQueue.main.async { onLine(line, true) }
+            captured = line + "\n"
+        }
 
+        // the harness reports a lua error as an output line, so a non-zero code means the harness itself failed
         return RunOutcome(
-            output: text,
-            failed: code != 0 || text.hasPrefix("error: ") || text.contains("\nerror: ")
+            output: captured,
+            failed: code != 0 || captured.hasPrefix("error: ") || captured.contains("\nerror: ")
         )
     }
 
@@ -70,13 +80,11 @@ final class LuaRunner {
     }
 
     // the paths come from the app's own temporary directory, so they carry nothing that could close the lua string
-    private func harness(script: URL, output: URL, scratch: URL) -> String {
+    // print is routed to the host so the console fills live, and the paths come from the app's own directory
+    private func harness(script: URL, scratch: URL) -> String {
         """
-        local out = assert(io.open([[\(output.path)]], "w"))
-
-        local function report(message)
-            out:write("error: ", tostring(message), "\\n")
-            out:flush()
+        local function emit(line)
+            host.emit(line)
         end
 
         print = function(...)
@@ -84,14 +92,11 @@ final class LuaRunner {
             for i = 1, select("#", ...) do
                 parts[i] = tostring((select(i, ...)))
             end
-            out:write(table.concat(parts, "\\t"), "\\n")
-            out:flush()
+            emit(table.concat(parts, "\t"))
         end
 
-        -- a sandboxed app has no writable working directory, so the one place a sample may write is named here
         SAMPLE_DIR = [[\(scratch.path)]]
 
-        -- an error inside a background coroutine never reaches the pcall below, so each entry point reports its own
         local async = require("async")
         local realRun, realSpawn = async.run, async.spawn
 
@@ -99,7 +104,7 @@ final class LuaRunner {
             return realRun(function()
                 local ok, err = pcall(fn)
                 if not ok then
-                    report(err)
+                    emit("error: " .. tostring(err))
                 end
             end)
         end
@@ -108,7 +113,7 @@ final class LuaRunner {
             return realSpawn(function()
                 local ok, err = pcall(fn)
                 if not ok then
-                    report(err)
+                    emit("error: " .. tostring(err))
                 end
             end)
         end
@@ -119,11 +124,11 @@ final class LuaRunner {
 
         local chunk, loadError = load(source, "=sample")
         if not chunk then
-            report(loadError)
+            emit("error: " .. tostring(loadError))
         else
             local ok, runError = pcall(chunk)
             if not ok then
-                report(runError)
+                emit("error: " .. tostring(runError))
             end
         end
         """

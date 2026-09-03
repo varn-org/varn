@@ -796,8 +796,14 @@ server:listen({
 
 The server runs an event loop on the same thread as Lua — `epoll` on Linux, `kqueue` on
 macOS/BSD, `IOCP` on Windows — so one process serves many thousands of connections without a
-thread per connection. Poco provides the sockets and TLS; the HTTP client is built on Poco (in
-the browser build, the client uses the host's `fetch`).
+thread per connection. Poco provides the sockets and TLS.
+
+The client picks the transport its platform is best served by, without changing this API. On desktop it
+is built on Poco; in the browser it uses the host's `fetch`; on iOS it runs on `NSURLSession` and on
+Android on `HttpURLConnection`, so an application's `Info.plist` and `network_security_config.xml`
+govern trust anchors, certificate pinning and the cleartext policy, and the trust store, system proxy
+and HTTP/2 come from the operating system. Every transport hands a redirect to the caller rather than
+following it, and a compressed body is decoded before it is returned.
 
 Each handler runs inline on the loop thread the moment its request is parsed, with no per-request
 hand-off, and the Lua runtime collects garbage generationally so the short-lived objects a request

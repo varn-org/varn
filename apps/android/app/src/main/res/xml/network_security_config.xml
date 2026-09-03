@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The engine's http client runs on the platform stack, so this file governs it the same way it governs
+    any other networking the application does. Add a domain-config here to pin a certificate, to trust a
+    private authority, or to allow cleartext for a development host, and the change applies without a rebuild
+    of the engine.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

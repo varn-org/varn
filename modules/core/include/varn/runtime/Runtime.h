@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 struct lua_State;
@@ -45,6 +46,9 @@ public:
 
     void registerHostFunction(const std::string& name, HostFunction fn);
 
+    void addHostEventHandler(const std::string& name, int luaRef);
+    void emitHostEvent(const std::string& name, const std::string& jsonArgument);
+
     void addServer(std::shared_ptr<varn::http::HttpServer> server);
     void stop();
     bool stopped() const { return stopFlag.load(std::memory_order_acquire); }
@@ -68,12 +72,15 @@ private:
     std::atomic<int> backgroundDrivers{0};
     std::unique_ptr<varn::lua::LuaEngine> engine;
     std::vector<std::unique_ptr<HostFunction>> hostFunctions;
+    mutable std::mutex handlersMutex;
+    std::unordered_map<std::string, std::vector<int>> hostEventHandlers;
     mutable std::mutex serversMutex;
     std::vector<std::shared_ptr<varn::http::HttpServer>> servers;
     std::atomic<bool> stopFlag{false};
     bool unhandledError = false;
     bool entryRequestedStop = false;
 
+    void ensureHostTable(lua_State* L);
     int finishAfterUserChunk(int loadRunExitCode);
 };
 

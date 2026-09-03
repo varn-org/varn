@@ -117,17 +117,10 @@ void JsonSerializer::appendValue(lua_State* L, int index, std::string& out, int 
     }
 }
 
+// every lua value is valid json, so a string or a number crosses the bridge as itself rather than as an empty object
 std::string JsonSerializer::serialize(lua_State* L, int index)
 {
-    if (!lua_istable(L, index))
-    {
-        return "{}";
-    }
-
-    std::string out;
-    out.reserve(64);
-    appendValue(L, index, out, 0);
-    return out;
+    return encode(L, index, 0);
 }
 
 std::string JsonSerializer::encode(lua_State* L, int index, int indent)

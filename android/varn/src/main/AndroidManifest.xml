@@ -1,2 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        The engine ships an http client and a socket module, so a host application needs this permission for
+        them to work at all. It is declared here and merged into the application manifest, which keeps a missing
+        permission from surfacing as an unexplained connection failure.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+</manifest>

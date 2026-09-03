@@ -45,10 +45,18 @@ final class PlaygroundViewController: UIViewController {
         engine.textColor = Palette.textFaint
         engine.font = .systemFont(ofSize: 12)
 
+        // a button configuration replaces the content insets and title attributes that were deprecated in ios 15
+        var picker = UIButton.Configuration.plain()
+        picker.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
+        picker.baseForegroundColor = Palette.text
+        picker.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
+            var updated = attributes
+            updated.font = .systemFont(ofSize: 14)
+            return updated
+        }
+
+        samplePicker.configuration = picker
         samplePicker.contentHorizontalAlignment = .leading
-        samplePicker.setTitleColor(Palette.text, for: .normal)
-        samplePicker.titleLabel?.font = .systemFont(ofSize: 14)
-        samplePicker.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
         style(samplePicker, background: Palette.field)
         samplePicker.showsMenuAsPrimaryAction = true
 
@@ -188,12 +196,12 @@ final class PlaygroundViewController: UIViewController {
                 return
             }
 
-            let outcome = self.runner.run(source: source)
+            // each line arrives on the main queue as the chunk prints it, so a sample that waits shows progress
+            let outcome = self.runner.run(source: source) { [weak self] line, isError in
+                self?.append(line: line, error: isError)
+            }
 
             DispatchQueue.main.async {
-                if !outcome.output.isEmpty {
-                    self.append(block: outcome.output)
-                }
                 self.status.text = outcome.failed ? "Finished with errors." : "Finished."
                 self.runButton.isEnabled = true
                 self.running = false
@@ -215,13 +223,8 @@ final class PlaygroundViewController: UIViewController {
         status.text = "Console cleared."
     }
 
-    // an error line is tinted so a failure stands out from the printed output around it
-    private func append(block: String) {
-        for line in block.trimmingCharacters(in: .newlines).components(separatedBy: "\n") {
-            append(line: line, error: line.hasPrefix("error: "))
-        }
-    }
 
+    // an error line is tinted so a failure stands out from the printed output around it
     private func append(line: String, error: Bool) {
         let attributed = NSMutableAttributedString(attributedString: console.attributedText ?? NSAttributedString())
         attributed.append(NSAttributedString(

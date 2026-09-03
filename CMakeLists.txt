@@ -45,6 +45,17 @@ option(VARN_NO_SENDFILE "disable the zero-copy sendfile fast path and serve file
 option(VARN_BUILD_TESTS "build the native C++ test target (googletest)" OFF)
 set(VARN_SANITIZE "" CACHE STRING "comma-separated sanitizers to build with, e.g. address,undefined (clang/gcc only)")
 
+# an embedded mobile build talks to the network through the platform, so the app steers it from its own manifest:
+# app transport security on apple and the network security config on android are honoured by the stack that reads
+# them, and the trust store, the system proxy and http/2 come from the os rather than from a bundle the engine ships
+if(DEFINED CACHE{VARN_TARGET})
+    if(VARN_TARGET STREQUAL "apple")
+        set(VARN_HTTP_CLIENT_DRIVER "APPLE" CACHE STRING "" FORCE)
+    elseif(VARN_TARGET STREQUAL "android")
+        set(VARN_HTTP_CLIENT_DRIVER "ANDROID" CACHE STRING "" FORCE)
+    endif()
+endif()
+
 # the browser cannot host raw tcp or an in-page server, so force the wasm-capable driver set
 if(VARN_BUILDING_FOR_EMSCRIPTEN)
     set(VARN_ENABLE_TLS OFF CACHE BOOL "tls (disabled for Emscripten)" FORCE)

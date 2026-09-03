@@ -20,6 +20,19 @@ class RuntimeHelpers
 {
 public:
     // bridges a Lua call to a host function, marshalling the single argument and the result through json
+    // host.on(name, fn) keeps the function in the registry so the host can reach it later from another thread
+    static int hostOnTrampoline(lua_State* L)
+    {
+        auto* runtime = static_cast<Runtime*>(lua_touserdata(L, lua_upvalueindex(1)));
+
+        const char* name = luaL_checkstring(L, 1);
+        luaL_checktype(L, 2, LUA_TFUNCTION);
+
+        lua_pushvalue(L, 2);
+        runtime->addHostEventHandler(name, luaL_ref(L, LUA_REGISTRYINDEX));
+        return 0;
+    }
+
     static int hostTrampoline(lua_State* L)
     {
         auto* fn = static_cast<Runtime::HostFunction*>(lua_touserdata(L, lua_upvalueindex(1)));
@@ -49,6 +62,10 @@ Runtime::Runtime(std::vector<std::string> args, std::size_t scriptArgIndex)
     workLedger->setNotify([this]
                           { loop.wake(); });
     pool.start();
+
+    // the bridge exists from the start, so a script can subscribe with host.on even when the host registers no function
+    ensureHostTable(engine->state());
+    lua_pop(engine->state(), 1);
 }
 
 Runtime::~Runtime()
@@ -162,21 +179,78 @@ void Runtime::registerHostFunction(const std::string& name, HostFunction fn)
     HostFunction* stored = hostFunctions.back().get();
 
     lua_State* L = engine->state();
-
-    // create or reuse the global host table, then bind name to a closure carrying the stored function pointer
-    lua_getglobal(L, "host");
-    if (!lua_istable(L, -1))
-    {
-        lua_pop(L, 1);
-        lua_newtable(L);
-        lua_pushvalue(L, -1);
-        lua_setglobal(L, "host");
-    }
+    ensureHostTable(L);
 
     lua_pushlightuserdata(L, stored);
     lua_pushcclosure(L, &RuntimeHelpers::hostTrampoline, 1);
     lua_setfield(L, -2, name.c_str());
     lua_pop(L, 1);
+}
+
+// the host table is the whole native bridge: host.<name> reaches native, host.on receives from it
+void Runtime::ensureHostTable(lua_State* L)
+{
+    lua_getglobal(L, "host");
+    if (lua_istable(L, -1))
+    {
+        return;
+    }
+
+    lua_pop(L, 1);
+    lua_newtable(L);
+    lua_pushvalue(L, -1);
+    lua_setglobal(L, "host");
+
+    lua_pushlightuserdata(L, this);
+    lua_pushcclosure(L, &RuntimeHelpers::hostOnTrampoline, 1);
+    lua_setfield(L, -2, "on");
+}
+
+void Runtime::addHostEventHandler(const std::string& name, int luaRef)
+{
+    std::lock_guard<std::mutex> lock(handlersMutex);
+    hostEventHandlers[name].push_back(luaRef);
+}
+
+void Runtime::emitHostEvent(const std::string& name, const std::string& jsonArgument)
+{
+    // the host calls this from its own thread, so delivery is posted and lua is only touched on the loop
+    loop.post([this, name, jsonArgument]()
+              {
+        if (stopped())
+        {
+            return;
+        }
+
+        // a handler may register another one, so the list is copied before any of them runs
+        std::vector<int> refs;
+        {
+            std::lock_guard<std::mutex> lock(handlersMutex);
+            auto found = hostEventHandlers.find(name);
+            if (found == hostEventHandlers.end())
+            {
+                return;
+            }
+
+            refs = found->second;
+        }
+
+        lua_State* L = engine->state();
+        for (const int ref : refs)
+        {
+            lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+            if (!varn::json::JsonSerializer::deserialize(L, jsonArgument))
+            {
+                lua_pushnil(L);
+            }
+
+            if (lua_pcall(L, 1, 0, 0) != LUA_OK)
+            {
+                const char* message = lua_tostring(L, -1);
+                log::Log::error("Runtime", message != nullptr ? message : "A host event handler failed.");
+                lua_pop(L, 1);
+            }
+        } });
 }
 
 void Runtime::addServer(std::shared_ptr<varn::http::HttpServer> server)

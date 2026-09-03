@@ -46,6 +46,46 @@ extern "C"
         }
     }
 
+    int varn_runtime_emit(varn_runtime* runtime, const char* name, const char* json_argument)
+    {
+        if (!runtime || !name)
+        {
+            return 2;
+        }
+
+        try
+        {
+            reinterpret_cast<varn::runtime::Runtime*>(runtime)->emitHostEvent(name, json_argument != nullptr ? json_argument : "null");
+            return 0;
+        }
+        catch (...)
+        {
+            return 1;
+        }
+    }
+
+    int varn_runtime_retain(varn_runtime* runtime)
+    {
+        if (!runtime)
+        {
+            return 2;
+        }
+
+        reinterpret_cast<varn::runtime::Runtime*>(runtime)->retainBackgroundDriver();
+        return 0;
+    }
+
+    int varn_runtime_release(varn_runtime* runtime)
+    {
+        if (!runtime)
+        {
+            return 2;
+        }
+
+        reinterpret_cast<varn::runtime::Runtime*>(runtime)->releaseBackgroundDriver();
+        return 0;
+    }
+
     int varn_runtime_run_file(varn_runtime* runtime, const char* path)
     {
         if (!runtime || !path)

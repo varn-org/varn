@@ -12,6 +12,8 @@ The whole embedding surface is `varn/varn.h`:
 | --- | --- |
 | `varn_runtime* varn_runtime_new(void)` | create a runtime (its own Lua state, event loop, and worker pools) |
 | `int varn_runtime_register(rt, name, fn, userdata)` | expose a native function to Lua as `host.<name>` (call before running a chunk) |
+| `int varn_runtime_emit(rt, name, json_argument)` | deliver an event to the Lua handlers registered for `name` with `host.on`, from any thread |
+| `int varn_runtime_retain(rt)` / `varn_runtime_release(rt)` | hold the event loop open so the runtime waits for events instead of exiting |
 | `int varn_runtime_run_file(rt, path)` | load and run a Lua file, then pump the event loop until it is idle |
 | `int varn_runtime_run_string(rt, source, chunk_name)` | run Lua from a string |
 | `void varn_runtime_stop(rt)` | ask a running runtime to stop |
@@ -94,6 +96,39 @@ int main(void)
 ```
 
 The JSON boundary keeps the C ABI free of Lua types, so any language that can implement a `const char* (*)(const char*, void*)` callback and speak JSON can plug in. The returned pointer is copied before Lua resumes, so it only needs to be valid until the callback returns, and returning `NULL` is read as JSON `null`. Register every host function before running a chunk.
+
+## Sending events back to Lua
+
+`varn_runtime_register` is one direction: Lua calls the host. `varn_runtime_emit` is the other, and it is what a user interface needs — a tap happens on the host side and has to reach the script.
+
+Lua subscribes with `host.on`, which takes a name and a function:
+
+```lua
+host.on("tap", function(payload)
+    print("tapped " .. payload.id)
+end)
+```
+
+The host delivers whenever it likes, from whatever thread it is on:
+
+```c
+varn_runtime_emit(rt, "tap", "{\"id\":\"save\"}");
+```
+
+Two rules make this safe. The call is posted to the event loop, so the Lua state is only ever touched on the loop thread no matter which thread emitted. And the handler list is copied before any handler runs, so a handler may subscribe another one without disturbing the delivery in progress.
+
+An event with no subscriber is not an error, and a handler that raises is logged without taking the loop down.
+
+### Keeping the runtime alive
+
+`varn_runtime_run_file` and `varn_runtime_run_string` pump the loop until it is idle and then return. A script that only subscribes to events has nothing pending, so the runtime would finish immediately. `varn_runtime_retain` holds the loop open until the matching `varn_runtime_release`:
+
+```c
+varn_runtime_retain(rt);              /* before running, so the loop never sees itself idle */
+varn_runtime_run_string(rt, script, "=app");   /* returns when the host releases */
+```
+
+Run it on a thread of your own: it blocks for as long as the runtime lives, and the emitting side stays free.
 
 ## Driving native UI from one Lua script
 
@@ -202,5 +237,4 @@ The screen logic (`app.lua`) is shared; only `makeScreen`/`makeButton`/… diffe
 
 ### Notes and current limits
 
-- `host.*` calls are request/response (Lua → host). Native events flow back the other way by running a Lua handler with `varn_runtime_run_string` (as in `onTap` above); a first-class host → Lua call is a natural future addition to the C API.
 - There is no bundled widget set, layout engine, or navigation — those are yours to expose. varn provides the runtime, the Lua ↔ native bridge, and everything non-visual (networking, storage, crypto, json, scheduling).

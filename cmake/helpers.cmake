@@ -50,6 +50,11 @@ function(varn_apply_usage target scope)
         target_link_libraries(${target} ${scope} "-framework CoreFoundation")
     endif()
 
+    # the apple http client is built on the url loading system, which lives in foundation
+    if(VARN_NEEDS_FOUNDATION)
+        target_link_libraries(${target} ${scope} "-framework Foundation")
+    endif()
+
     if(VARN_NEEDS_LIBUV)
         target_link_libraries(${target} ${scope} uv_a)
     endif()
