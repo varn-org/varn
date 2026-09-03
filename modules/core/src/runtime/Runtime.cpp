@@ -6,6 +6,10 @@
 
 #include <lua.hpp>
 
+#if defined(__EMSCRIPTEN__)
+#include "varn/wasm/WasmAsyncHost.h"
+#endif
+
 namespace varn::runtime
 {
 
@@ -95,6 +99,69 @@ void Runtime::beginChunk()
 {
     unhandledError = false;
     entryRequestedStop = false;
+}
+
+int Runtime::loadFile(const std::string& scriptPath)
+{
+    beginChunk();
+    return finishAfterLoad(engine->runFile(scriptPath));
+}
+
+int Runtime::loadString(const std::string& source, const std::string& chunkName)
+{
+    beginChunk();
+    return finishAfterLoad(engine->runString(source, chunkName));
+}
+
+// the chunk has run and whatever it left behind is now the host's to drive, so the loop is never entered here
+int Runtime::finishAfterLoad(int loadRunExitCode)
+{
+    if (loadRunExitCode != 0)
+    {
+        return loadRunExitCode;
+    }
+
+    return unhandledError ? 1 : 0;
+}
+
+bool Runtime::poll()
+{
+    if (stopped())
+    {
+        return false;
+    }
+
+#if defined(__EMSCRIPTEN__)
+    // the browser has no threads, so a pool job only ever runs when the pump drains it here
+    bool progressed = false;
+    do
+    {
+        progressed = false;
+        if (pool.hasPostedJobs())
+        {
+            pool.drainPostedJobs();
+            progressed = true;
+        }
+
+        if (ioPool().hasPostedJobs())
+        {
+            ioPool().drainPostedJobs();
+            progressed = true;
+        }
+
+        if (loop.hasPendingJobs())
+        {
+            loop.drainPostedJobs();
+            progressed = true;
+        }
+    } while (progressed);
+
+    // a fetch resumes through a js callback and a timer matures on a later tick, so either one still expects more work
+    const bool fetchPending = varn::wasm::WasmAsyncHost::fetchInflight().load(std::memory_order_acquire) > 0;
+    return fetchPending || loop.hasPendingTimers() || loop.pending();
+#else
+    return loop.poll();
+#endif
 }
 
 bool Runtime::runStringWithoutEventLoop(const std::string& source, const std::string& chunkName, std::string* errorMessage, void (*prePcallHook)(lua_State*, void*), void* prePcallUserdata)

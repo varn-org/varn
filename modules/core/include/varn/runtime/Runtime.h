@@ -37,6 +37,10 @@ public:
 
     int runScript(const std::string& scriptPath);
     int runString(const std::string& source, const std::string& chunkName);
+
+    int loadFile(const std::string& scriptPath);
+    int loadString(const std::string& source, const std::string& chunkName);
+    bool poll();
     bool runStringWithoutEventLoop(const std::string& source, const std::string& chunkName, std::string* errorMessage, void (*prePcallHook)(lua_State*, void*) = nullptr, void* prePcallUserdata = nullptr);
 
     EventLoop& mainLoop();
@@ -82,6 +86,7 @@ private:
     void ensureHostTable(lua_State* L);
     void beginChunk();
     int finishAfterUserChunk(int loadRunExitCode);
+    int finishAfterLoad(int loadRunExitCode);
 };
 
 } // namespace varn::runtime

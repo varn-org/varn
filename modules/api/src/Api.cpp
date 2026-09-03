@@ -64,6 +64,57 @@ extern "C"
         }
     }
 
+    int varn_runtime_load_file(varn_runtime* runtime, const char* path)
+    {
+        if (!runtime || !path)
+        {
+            return 2;
+        }
+
+        try
+        {
+            return reinterpret_cast<varn::runtime::Runtime*>(runtime)->loadFile(path);
+        }
+        catch (...)
+        {
+            return 1;
+        }
+    }
+
+    int varn_runtime_load_string(varn_runtime* runtime, const char* source, const char* chunk_name)
+    {
+        if (!runtime || !source)
+        {
+            return 2;
+        }
+
+        try
+        {
+            return reinterpret_cast<varn::runtime::Runtime*>(runtime)->loadString(source, chunk_name ? chunk_name : "=(embedded)");
+        }
+        catch (...)
+        {
+            return 1;
+        }
+    }
+
+    int varn_runtime_poll(varn_runtime* runtime)
+    {
+        if (!runtime)
+        {
+            return 2;
+        }
+
+        try
+        {
+            return reinterpret_cast<varn::runtime::Runtime*>(runtime)->poll() ? 1 : 0;
+        }
+        catch (...)
+        {
+            return 0;
+        }
+    }
+
     int varn_runtime_retain(varn_runtime* runtime)
     {
         if (!runtime)

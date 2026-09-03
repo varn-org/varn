@@ -15,6 +15,8 @@ The whole embedding surface is `varn/varn.h`:
 | `int varn_runtime_emit(rt, name, json_argument)` | deliver an event to the Lua handlers registered for `name` with `host.on`, from any thread |
 | `int varn_runtime_retain(rt)` / `varn_runtime_release(rt)` | hold the event loop open so the runtime waits for events instead of exiting |
 | `int varn_runtime_run_file(rt, path)` | load and run a Lua file, then pump the event loop until it is idle |
+| `int varn_runtime_load_file(rt, path)` / `varn_runtime_load_string(rt, source, name)` | run a chunk and hand control straight back, leaving the event loop to the host |
+| `int varn_runtime_poll(rt)` | advance the runtime once without blocking, answering 1 while work remains |
 | `int varn_runtime_run_string(rt, source, chunk_name)` | run Lua from a string |
 | `void varn_runtime_stop(rt)` | ask a running runtime to stop |
 | `void varn_runtime_free(rt)` | destroy the runtime (joins its threads) |
@@ -133,6 +135,44 @@ Run it on a thread of your own: it blocks for as long as the runtime lives, and 
 Retain and release are safe from any thread, and a retain taken while the loop is already running is never lost to the loop's own decision to exit. The two must balance, so `varn_runtime_release` answers non-zero when there is no retain left to give back. That answer is worth checking, because a host that releases more than it retained has a bug that would otherwise surface as a runtime exiting earlier than it should.
 
 A runtime is not single-shot. Each `varn_runtime_run_file` or `varn_runtime_run_string` gets the event loop and its own exit code, so a host can load one chunk and then run another on the same runtime, keeping every host function, subscription and piece of Lua state the earlier chunk left behind.
+
+## Driving the runtime from the host's own run loop
+
+`varn_runtime_run_file` and `varn_runtime_run_string` take the calling thread until the runtime has nothing left to do. That is what a command-line program wants, and it is the wrong shape for a user interface, because UIKit and Android's `View` may only be touched on the main thread. A host that runs the engine on a background thread has to hop every call across threads, and a call that must return something — the handle of a widget it just created — has to hop back synchronously, which blocks the engine thread on the main thread.
+
+The alternative is to let the platform keep its own run loop and drive the runtime from it. `varn_runtime_load_file` and `varn_runtime_load_string` run the chunk and return immediately, leaving whatever it armed in place. `varn_runtime_poll` then advances the runtime once and never blocks, answering `1` while something can still make progress and `0` once nothing can.
+
+```c
+varn_runtime_load_file(rt, "app.lua");   /* returns as soon as the chunk itself is done */
+
+/* from CADisplayLink, Choreographer, a Handler, or requestAnimationFrame */
+varn_runtime_poll(rt);
+```
+
+Everything then happens on the thread that pumps. A `host.<name>` call from Lua arrives on that thread, so a UI bridge touches its widgets directly with no dispatch, no lock and no chance of deadlock. Timers, sockets, the HTTP client and events delivered with `varn_runtime_emit` are all advanced by the same call.
+
+Poll and the blocking calls are two ways to drive one runtime, not two modes it has to be put into. A host may load a chunk, pump it for a while, and still call `varn_runtime_stop` to end it.
+
+### In the browser
+
+The WebAssembly build exposes the same bridge to JavaScript, so a page is a host like any other:
+
+```js
+varnRegister("ui_button", (json) => {
+    const spec = JSON.parse(json);
+    const id = createRealButton(spec);
+    return JSON.stringify({ id });
+});
+
+varnLoadChunk(appLuaSource);
+
+const tick = () => { varnPoll(); requestAnimationFrame(tick); };
+requestAnimationFrame(tick);
+
+button.onclick = () => varnEmit("tap", JSON.stringify({ id: "save" }));
+```
+
+`varnRunChunk` is still there and still runs a chunk to completion, which is what the playground uses. `varnLoadChunk` plus `varnPoll` is the shape an interface wants.
 
 ## Driving native UI from one Lua script
 

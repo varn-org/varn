@@ -504,6 +504,42 @@ void EventLoop::shutdownIo()
 
 #endif
 
+// runs every job that is ready and every timer that is due, any of which may post more work or stop the loop
+void EventLoop::drainReady()
+{
+    for (;;)
+    {
+        if (!running.load(std::memory_order_acquire))
+        {
+            return;
+        }
+
+        Job job;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            const auto now = std::chrono::steady_clock::now();
+            while (!timers.empty() && timers.begin()->first <= now)
+            {
+                jobs.push(std::move(timers.begin()->second));
+                timers.erase(timers.begin());
+            }
+
+            if (jobs.empty())
+            {
+                return;
+            }
+
+            job = std::move(jobs.front());
+            jobs.pop();
+        }
+
+        if (job)
+        {
+            job();
+        }
+    }
+}
+
 void EventLoop::run()
 {
 #if defined(__EMSCRIPTEN__)
@@ -515,38 +551,7 @@ void EventLoop::run()
 
     while (running.load(std::memory_order_acquire))
     {
-        // run every ready job and due timer, any of which may post more work, arm sockets or stop the loop
-        for (;;)
-        {
-            if (!running.load(std::memory_order_acquire))
-            {
-                break;
-            }
-
-            Job job;
-            {
-                std::lock_guard<std::mutex> lock(mutex);
-                const auto now = std::chrono::steady_clock::now();
-                while (!timers.empty() && timers.begin()->first <= now)
-                {
-                    jobs.push(std::move(timers.begin()->second));
-                    timers.erase(timers.begin());
-                }
-
-                if (jobs.empty())
-                {
-                    break;
-                }
-
-                job = std::move(jobs.front());
-                jobs.pop();
-            }
-
-            if (job)
-            {
-                job();
-            }
-        }
+        drainReady();
 
         if (!running.load(std::memory_order_acquire))
         {
@@ -590,6 +595,43 @@ void EventLoop::run()
         uv_run(&poller->loop, UV_RUN_ONCE);
         uv_timer_stop(&poller->timer);
     }
+#endif
+}
+
+// advances the loop once without ever blocking, so a host that owns its own run loop drives the runtime from it
+bool EventLoop::poll()
+{
+    // an entry that finished asks the loop to stop, which under this model ends that entry rather than the runtime
+    running.store(true, std::memory_order_release);
+    // the caller's thread is the loop thread for this tick, so work armed from Lua is applied directly rather than queued
+    loopThread.store(std::this_thread::get_id(), std::memory_order_release);
+
+    drainReady();
+
+#if !defined(__EMSCRIPTEN__)
+    if (running.load(std::memory_order_acquire))
+    {
+        poller->drainCommands();
+        uv_run(&poller->loop, UV_RUN_NOWAIT);
+    }
+#endif
+
+    return pending();
+}
+
+// reports whether anything could still make progress, which is what tells a host whether to keep pumping
+bool EventLoop::pending() const
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!jobs.empty() || !timers.empty() || keepAlive > 0)
+    {
+        return true;
+    }
+
+#if defined(__EMSCRIPTEN__)
+    return false;
+#else
+    return poller->hasSockets();
 #endif
 }
 

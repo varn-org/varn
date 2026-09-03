@@ -30,7 +30,16 @@ public:
 
     static RunResult runChunk(const std::string& source);
 
+#if defined(__EMSCRIPTEN__)
+    static RunResult loadChunk(const std::string& source);
+    static bool poll();
+    static void registerHostFunction(const std::string& name, emscripten::val callback);
+    static bool emit(const std::string& name, const std::string& jsonArgument);
+#endif
+
 private:
+    static varn::runtime::Runtime& ensureRuntime();
+
     struct PrintSinkScope
     {
         explicit PrintSinkScope(std::string* sink) { printSink = sink; }
@@ -147,10 +156,8 @@ std::unique_ptr<varn::runtime::Runtime>& WasmHost::runtime()
     return instance;
 }
 
-RunResult WasmHost::runChunk(const std::string& source)
+varn::runtime::Runtime& WasmHost::ensureRuntime()
 {
-    RunResult result;
-
     auto& rtPtr = runtime();
     if (!rtPtr)
     {
@@ -160,7 +167,14 @@ RunResult WasmHost::runChunk(const std::string& source)
         lua_setglobal(Lsetup, "print");
     }
 
-    varn::runtime::Runtime& rt = *rtPtr;
+    return *rtPtr;
+}
+
+RunResult WasmHost::runChunk(const std::string& source)
+{
+    RunResult result;
+
+    varn::runtime::Runtime& rt = ensureRuntime();
     lua_State* L = rt.luaState();
 
     std::string collected;
@@ -189,6 +203,71 @@ RunResult WasmHost::runChunk(const std::string& source)
     return result;
 }
 
+#if defined(__EMSCRIPTEN__)
+
+// runs the chunk and hands control straight back, leaving whatever it armed for varnPoll to drive
+RunResult WasmHost::loadChunk(const std::string& source)
+{
+    RunResult result;
+
+    varn::runtime::Runtime& rt = ensureRuntime();
+    std::string collected;
+    std::string err;
+
+    {
+        PrintSinkScope sinkScope(&collected);
+        result.ok = rt.runStringWithoutEventLoop(source, "=wasm", &err);
+    }
+
+    result.output = std::move(collected);
+    if (!result.ok)
+    {
+        result.error = std::move(err);
+    }
+
+    return result;
+}
+
+// the page drives the runtime from its own loop, typically requestAnimationFrame, the same way a native app pumps it
+bool WasmHost::poll()
+{
+    std::string collected;
+    PrintSinkScope sinkScope(&collected);
+    const bool more = ensureRuntime().poll();
+
+    if (!collected.empty())
+    {
+        emscripten::val::global("console").call<void>("log", collected);
+    }
+
+    return more;
+}
+
+// the page supplies a native capability the same way an ios or android host does, as a json in, json out function
+void WasmHost::registerHostFunction(const std::string& name, emscripten::val callback)
+{
+    // clang-format off
+    ensureRuntime().registerHostFunction(name, [callback](const std::string& argument) -> std::string
+    {
+        emscripten::val answer = callback(argument);
+        if (answer.isUndefined() || answer.isNull())
+        {
+            return std::string("null");
+        }
+
+        return answer.as<std::string>();
+    });
+    // clang-format on
+}
+
+bool WasmHost::emit(const std::string& name, const std::string& jsonArgument)
+{
+    ensureRuntime().emitHostEvent(name, jsonArgument);
+    return true;
+}
+
+#endif
+
 } // namespace varn::wasm
 
 #if defined(__EMSCRIPTEN__)
@@ -200,5 +279,9 @@ EMSCRIPTEN_BINDINGS(varn_wasm)
         .field("error", &varn::wasm::RunResult::error);
 
     emscripten::function("varnRunChunk", &varn::wasm::WasmHost::runChunk);
+    emscripten::function("varnLoadChunk", &varn::wasm::WasmHost::loadChunk);
+    emscripten::function("varnPoll", &varn::wasm::WasmHost::poll);
+    emscripten::function("varnRegister", &varn::wasm::WasmHost::registerHostFunction);
+    emscripten::function("varnEmit", &varn::wasm::WasmHost::emit);
 }
 #endif

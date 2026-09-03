@@ -26,6 +26,14 @@ extern "C"
     /* delivers an event to every lua handler registered for name through host.on, callable from any thread */
     VARN_API int varn_runtime_emit(varn_runtime* runtime, const char* name, const char* json_argument);
 
+    /* runs a chunk without entering the event loop, leaving whatever it armed for varn_runtime_poll to drive */
+    VARN_API int varn_runtime_load_file(varn_runtime* runtime, const char* path);
+    VARN_API int varn_runtime_load_string(varn_runtime* runtime, const char* source, const char* chunk_name);
+
+    /* advances the runtime once without ever blocking, so an app drives it from its own run loop on its own thread.
+       answers 1 while something can still make progress, 0 once nothing can, and 2 for a bad argument */
+    VARN_API int varn_runtime_poll(varn_runtime* runtime);
+
     /* keeps the event loop running while the host still has work for it, so an app can wait for input instead of exiting */
     VARN_API int varn_runtime_retain(varn_runtime* runtime);
 
