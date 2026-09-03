@@ -82,8 +82,8 @@ extern "C"
             return 2;
         }
 
-        reinterpret_cast<varn::runtime::Runtime*>(runtime)->releaseBackgroundDriver();
-        return 0;
+        // an unbalanced release would otherwise leave the loop holding a retain nobody can ever give back
+        return reinterpret_cast<varn::runtime::Runtime*>(runtime)->releaseBackgroundDriver() ? 0 : 1;
     }
 
     int varn_runtime_run_file(varn_runtime* runtime, const char* path)

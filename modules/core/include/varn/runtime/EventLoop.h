@@ -42,6 +42,9 @@ public:
 
     void clearPendingJobs();
 
+    void retain();
+    bool release();
+
     void setIdleExitPredicate(IdleExitPredicate predicate);
 
     bool hasPendingJobs() const;
@@ -71,6 +74,7 @@ private:
     std::queue<Job> jobs;
     std::multimap<std::chrono::steady_clock::time_point, Job> timers;
     std::atomic<bool> running{false};
+    int keepAlive = 0;
     IdleExitPredicate idleExitEligible;
     std::atomic<std::thread::id> loopThread{};
     std::unique_ptr<Poller> poller;

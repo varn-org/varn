@@ -29,9 +29,9 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            // the release build is minified so the keep rules the engine ships with its aar are actually exercised
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
     compileOptions {

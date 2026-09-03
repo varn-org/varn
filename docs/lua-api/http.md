@@ -46,6 +46,13 @@ built-in security middleware (`http.cors`, `http.securityHeaders`, `http.apiKey`
 `http.rateLimit`, `http.csrf`, `http.jwtAuth`, `http.requireAuth`, `http.requireRole`, and
 `http.jwt.sign` / `http.jwt.verify`). The full tour is in the `app_full` example below.
 
+The application carries an event bus so a handler can announce something without knowing who reacts
+to it. `app:on(name, handler)` subscribes and `app:emit(name, ...)` publishes, passing every extra
+argument through to each handler in subscription order. Delivery is synchronous and in-process, the
+handler list is copied before any of it runs so a handler may subscribe another one, and a handler
+that raises is logged and skipped rather than failing the request that emitted the event. The bus is
+private to one worker, so a process started with several workers does not share events between them.
+
 `http.rateLimit(opts)` takes `windowMs` (default 60000), `max` requests per window (default 100),
 `trustProxy` to read the client address from `X-Forwarded-For` (default false), and `maxClients`,
 the number of distinct client addresses tracked (default 100000). The store is bounded on purpose:

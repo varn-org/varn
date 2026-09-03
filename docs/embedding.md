@@ -130,6 +130,15 @@ varn_runtime_run_string(rt, script, "=app");   /* returns when the host releases
 
 Run it on a thread of your own: it blocks for as long as the runtime lives, and the emitting side stays free.
 
+Retain and release are safe from any thread, and a retain taken while the loop is already running is never
+lost to the loop's own decision to exit. The two must balance: `varn_runtime_release` answers non-zero when
+there is no retain left to give back, which is worth checking, because a host that releases more than it
+retained has a bug that would otherwise surface as a runtime that exits earlier than it should.
+
+A runtime is not single-shot. Each `varn_runtime_run_file` or `varn_runtime_run_string` gets the event loop
+and its own exit code, so a host can load one chunk and then run another on the same runtime, keeping every
+host function, subscription and piece of Lua state the earlier chunk left behind.
+
 ## Driving native UI from one Lua script
 
 The pattern for a mobile app whose screens are written in Lua and rendered with the platform's native widgets:

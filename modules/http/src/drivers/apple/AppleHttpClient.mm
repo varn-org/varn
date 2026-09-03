@@ -107,6 +107,7 @@ public:
 @property(nonatomic, assign) size_t receivedBytes;
 @property(nonatomic, assign) BOOL overflowed;
 @property(nonatomic, strong) NSError* failure;
+@property(nonatomic, strong) NSString* handlerFailure;
 @property(nonatomic, assign) int status;
 @property(nonatomic, strong) NSMutableData* buffer;
 @property(nonatomic, strong) dispatch_semaphore_t done;
@@ -152,12 +153,35 @@ public:
     self.status = static_cast<int>(http.statusCode);
     *self.headers = AppleHttpHelpers::collectHeaders(http);
 
-    if (self.onResponse != nullptr && *self.onResponse)
+    if (self.onResponse != nullptr && *self.onResponse && ![self runHandler:^{
+            (*self.onResponse)(self.status, *self.headers);
+        }])
     {
-        (*self.onResponse)(self.status, *self.headers);
+        completionHandler(NSURLSessionResponseCancel);
+        return;
     }
 
     completionHandler(NSURLSessionResponseAllow);
+}
+
+// a handler is caller code, and letting it unwind through the url loading system's queue would terminate the process
+- (BOOL)runHandler:(void (^)())work
+{
+    try
+    {
+        work();
+        return YES;
+    }
+    catch (const std::exception& failure)
+    {
+        self.handlerFailure = AppleHttpHelpers::toNsString(failure.what());
+    }
+    catch (...)
+    {
+        self.handlerFailure = @"[AppleHttpClient] A response handler failed.";
+    }
+
+    return NO;
 }
 
 // the cap is enforced here rather than after the fact, so an endless producer cannot exhaust memory
@@ -173,7 +197,13 @@ public:
 
     if (self.onChunk != nullptr && *self.onChunk)
     {
-        (*self.onChunk)(static_cast<const char*>(data.bytes), data.length);
+        if (![self runHandler:^{
+                (*self.onChunk)(static_cast<const char*>(data.bytes), data.length);
+            }])
+        {
+            [dataTask cancel];
+        }
+
         return;
     }
 
@@ -234,6 +264,12 @@ public:
 
             dispatch_semaphore_wait(delegate.done, DISPATCH_TIME_FOREVER);
             [session finishTasksAndInvalidate];
+
+            // the cancellation a handler or the cap triggered would otherwise be reported as a plain transport error
+            if (delegate.handlerFailure != nil)
+            {
+                throw std::runtime_error(AppleHttpHelpers::toStdString(delegate.handlerFailure));
+            }
 
             if (delegate.overflowed)
             {

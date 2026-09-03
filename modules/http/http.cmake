@@ -55,7 +55,10 @@ if(VARN_HTTP_CLIENT_DRIVER STREQUAL "POCO")
 elseif(VARN_HTTP_CLIENT_DRIVER STREQUAL "APPLE")
     # the url loading system is objective-c, so this one file compiles as objective-c++ and links foundation
     enable_language(OBJCXX)
-    list(APPEND VARN_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/drivers/apple/AppleHttpClient.mm")
+    set(VARN_APPLE_HTTP_SOURCE "${CMAKE_CURRENT_LIST_DIR}/src/drivers/apple/AppleHttpClient.mm")
+    list(APPEND VARN_SOURCES "${VARN_APPLE_HTTP_SOURCE}")
+    # arc owns the session, its delegate and every string handed to foundation, which manual retain counting would leak
+    set_source_files_properties("${VARN_APPLE_HTTP_SOURCE}" PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
     set(VARN_NEEDS_FOUNDATION ON)
 elseif(VARN_HTTP_CLIENT_DRIVER STREQUAL "ANDROID")
     list(APPEND VARN_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/drivers/android/AndroidHttpClient.cpp")

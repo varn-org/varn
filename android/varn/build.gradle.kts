@@ -20,6 +20,8 @@ android {
         ndk {
             abiFilters += abis
         }
+
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     externalNativeBuild {

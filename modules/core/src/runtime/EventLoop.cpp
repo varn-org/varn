@@ -566,7 +566,7 @@ void EventLoop::run()
 
             const bool haveTimers = !timers.empty();
             const bool haveSockets = poller->hasSockets();
-            if (!haveTimers && !haveSockets)
+            if (!haveTimers && !haveSockets && keepAlive == 0)
             {
                 if (idleExitEligible && idleExitEligible())
                 {
@@ -590,9 +590,6 @@ void EventLoop::run()
         uv_run(&poller->loop, UV_RUN_ONCE);
         uv_timer_stop(&poller->timer);
     }
-
-    // clear the io state on the loop thread that owns it once the loop has exited
-    shutdownIo();
 #endif
 }
 
@@ -623,6 +620,34 @@ void EventLoop::clearPendingJobs()
     {
         ledger->leave();
     }
+}
+
+// the count shares the mutex the exit decision is taken under, so a retain from another thread is never read late
+void EventLoop::retain()
+{
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        ++keepAlive;
+    }
+
+    wake();
+}
+
+// releasing what was never retained would drive the count negative and leave the loop unable to ever exit
+bool EventLoop::release()
+{
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (keepAlive == 0)
+        {
+            return false;
+        }
+
+        --keepAlive;
+    }
+
+    wake();
+    return true;
 }
 
 void EventLoop::wake()

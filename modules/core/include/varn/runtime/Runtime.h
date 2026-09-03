@@ -56,7 +56,7 @@ public:
     void onAsyncComplete(bool ok, bool stopLoopOnSuccess, const std::string& error);
 
     void retainBackgroundDriver();
-    void releaseBackgroundDriver();
+    bool releaseBackgroundDriver();
 
     const std::vector<std::string>& args() const;
     std::size_t scriptArgIndex() const { return scriptArgPosition; }
@@ -69,7 +69,6 @@ private:
     TaskPool pool;
     mutable std::mutex ioWorkersMutex;
     std::unique_ptr<TaskPool> ioWorkers;
-    std::atomic<int> backgroundDrivers{0};
     std::unique_ptr<varn::lua::LuaEngine> engine;
     std::vector<std::unique_ptr<HostFunction>> hostFunctions;
     mutable std::mutex handlersMutex;
@@ -81,6 +80,7 @@ private:
     bool entryRequestedStop = false;
 
     void ensureHostTable(lua_State* L);
+    void beginChunk();
     int finishAfterUserChunk(int loadRunExitCode);
 };
 

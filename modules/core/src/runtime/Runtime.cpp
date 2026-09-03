@@ -80,12 +80,21 @@ Runtime::~Runtime()
 
 int Runtime::runScript(const std::string& scriptPath)
 {
+    beginChunk();
     return finishAfterUserChunk(engine->runFile(scriptPath));
 }
 
 int Runtime::runString(const std::string& source, const std::string& chunkName)
 {
+    beginChunk();
     return finishAfterUserChunk(engine->runString(source, chunkName));
+}
+
+// a runtime runs as many chunks as the host asks it to, so the outcome of the previous one decides nothing here
+void Runtime::beginChunk()
+{
+    unhandledError = false;
+    entryRequestedStop = false;
 }
 
 bool Runtime::runStringWithoutEventLoop(const std::string& source, const std::string& chunkName, std::string* errorMessage, void (*prePcallHook)(lua_State*, void*), void* prePcallUserdata)
@@ -120,7 +129,7 @@ int Runtime::finishAfterUserChunk(int loadRunExitCode)
             noServers = servers.empty();
         }
 
-        return noServers && backgroundDrivers.load(std::memory_order_acquire) == 0 && workLedger->depth() == 0;
+        return noServers && workLedger->depth() == 0;
     });
     // clang-format on
     loop.run();
@@ -265,13 +274,12 @@ void Runtime::addServer(std::shared_ptr<varn::http::HttpServer> server)
 
 void Runtime::retainBackgroundDriver()
 {
-    backgroundDrivers.fetch_add(1, std::memory_order_relaxed);
+    loop.retain();
 }
 
-void Runtime::releaseBackgroundDriver()
+bool Runtime::releaseBackgroundDriver()
 {
-    backgroundDrivers.fetch_sub(1, std::memory_order_acq_rel);
-    loop.wake();
+    return loop.release();
 }
 
 void Runtime::stop()

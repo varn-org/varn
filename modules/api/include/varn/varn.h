@@ -28,6 +28,8 @@ extern "C"
 
     /* keeps the event loop running while the host still has work for it, so an app can wait for input instead of exiting */
     VARN_API int varn_runtime_retain(varn_runtime* runtime);
+
+    /* gives one retain back, answering non-zero when there was none to give so an unbalanced call cannot hang the loop */
     VARN_API int varn_runtime_release(varn_runtime* runtime);
 
     VARN_API int varn_runtime_run_file(varn_runtime* runtime, const char* path);

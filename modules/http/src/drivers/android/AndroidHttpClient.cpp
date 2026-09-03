@@ -1,5 +1,6 @@
 #include "varn/http/AndroidHttpBridge.h"
 #include "varn/http/HttpClientPerform.h"
+#include "varn/log/Log.h"
 
 #include <stdexcept>
 #include <string>
@@ -21,7 +22,6 @@ class AndroidJniCache
 public:
     JavaVM* vm = nullptr;
     jclass transport = nullptr;
-    jclass response = nullptr;
     jclass sink = nullptr;
     jclass text = nullptr;
     jclass failure = nullptr;
@@ -34,11 +34,21 @@ public:
     jfieldID headerValues = nullptr;
     jfieldID body = nullptr;
     jfieldID error = nullptr;
+    std::string unresolved;
 
     static AndroidJniCache& instance()
     {
         static AndroidJniCache cache;
         return cache;
+    }
+
+    // a stripped or renamed class leaves the transport unusable, and saying which one is missing is the whole diagnosis
+    void requireResolved() const
+    {
+        if (!unresolved.empty())
+        {
+            throw std::runtime_error("[AndroidHttpClient] The platform transport is unavailable because java " + unresolved + " could not be resolved.");
+        }
     }
 };
 
@@ -48,12 +58,9 @@ class Attachment
 public:
     Attachment()
     {
-        JavaVM* vm = AndroidJniCache::instance().vm;
-        if (vm == nullptr)
-        {
-            throw std::runtime_error("[AndroidHttpClient] The java virtual machine was never published to the engine.");
-        }
+        AndroidJniCache::instance().requireResolved();
 
+        JavaVM* vm = AndroidJniCache::instance().vm;
         if (vm->GetEnv(reinterpret_cast<void**>(&environment), JNI_VERSION_1_6) == JNI_OK)
         {
             return;
@@ -83,6 +90,32 @@ public:
 private:
     JNIEnv* environment = nullptr;
     bool attached = false;
+};
+
+// an engine thread never returns to java, so without a frame of its own every request would leak its local references
+class LocalFrame
+{
+public:
+    LocalFrame(JNIEnv* env, jint capacity)
+        : environment(env)
+    {
+        if (env->PushLocalFrame(capacity) != JNI_OK)
+        {
+            env->ExceptionClear();
+            throw std::runtime_error("[AndroidHttpClient] The java local reference frame could not be pushed.");
+        }
+    }
+
+    ~LocalFrame()
+    {
+        environment->PopLocalFrame(nullptr);
+    }
+
+    LocalFrame(const LocalFrame&) = delete;
+    LocalFrame& operator=(const LocalFrame&) = delete;
+
+private:
+    JNIEnv* environment = nullptr;
 };
 
 class AndroidHttpHelpers
@@ -116,10 +149,11 @@ public:
         return array;
     }
 
+    // a header set has no bound, so each pair is released as it is read rather than left to the enclosing frame
     static ResponseHeaders readHeaders(JNIEnv* env, jobjectArray names, jobjectArray values)
     {
         ResponseHeaders out;
-        const jsize count = names != nullptr ? env->GetArrayLength(names) : 0;
+        const jsize count = names != nullptr && values != nullptr ? env->GetArrayLength(names) : 0;
         out.reserve(static_cast<std::size_t>(count));
 
         for (jsize index = 0; index < count; ++index)
@@ -146,7 +180,7 @@ public:
     }
 };
 
-// the arguments one call hands to java, kept together so both entry points marshal them the same way
+// the arguments one call hands to java, marshalled the same way by both entry points and owned by the enclosing frame
 class AndroidRequest
 {
 public:
@@ -156,7 +190,6 @@ public:
         const std::string& url,
         const std::map<std::string, std::string>& headers,
         const std::string& body)
-        : environment(env)
     {
         std::vector<std::string> names;
         std::vector<std::string> values;
@@ -176,26 +209,11 @@ public:
         jBody = AndroidHttpHelpers::toByteArray(env, body);
     }
 
-    ~AndroidRequest()
-    {
-        environment->DeleteLocalRef(jMethod);
-        environment->DeleteLocalRef(jUrl);
-        environment->DeleteLocalRef(jNames);
-        environment->DeleteLocalRef(jValues);
-        environment->DeleteLocalRef(jBody);
-    }
-
-    AndroidRequest(const AndroidRequest&) = delete;
-    AndroidRequest& operator=(const AndroidRequest&) = delete;
-
     jstring jMethod = nullptr;
     jstring jUrl = nullptr;
     jobjectArray jNames = nullptr;
     jobjectArray jValues = nullptr;
     jbyteArray jBody = nullptr;
-
-private:
-    JNIEnv* environment = nullptr;
 };
 
 // what a streaming call hands back to the engine, reached from java through the handle the sink carries
@@ -208,22 +226,7 @@ struct StreamTarget
 class AndroidHttpRunner
 {
 public:
-    // a failure on the java side arrives through the response rather than as an exception crossing jni
-    static void rethrowFailure(JNIEnv* env, jobject answer)
-    {
-        const AndroidJniCache& cache = AndroidJniCache::instance();
-        auto message = static_cast<jstring>(env->GetObjectField(answer, cache.error));
-        if (message == nullptr)
-        {
-            return;
-        }
-
-        const std::string described = AndroidHttpHelpers::toStdString(env, message);
-        env->DeleteLocalRef(message);
-        throw std::runtime_error(described);
-    }
-
-    // a java exception left pending would corrupt the next call, so it is cleared and reported as the failure it is
+    // a java exception left pending makes the next jni call undefined, so it is cleared and reported as the failure it is
     static void rethrowPending(JNIEnv* env)
     {
         if (env->ExceptionCheck() != JNI_TRUE)
@@ -236,6 +239,23 @@ public:
         throw std::runtime_error("[AndroidHttpClient] The platform http stack raised an exception.");
     }
 
+    // a failure on the java side arrives through the response rather than as an exception crossing jni
+    static void rethrowFailure(JNIEnv* env, jobject answer)
+    {
+        if (answer == nullptr)
+        {
+            throw std::runtime_error("[AndroidHttpClient] The platform http stack returned no response.");
+        }
+
+        auto message = static_cast<jstring>(env->GetObjectField(answer, AndroidJniCache::instance().error));
+        if (message == nullptr)
+        {
+            return;
+        }
+
+        throw std::runtime_error(AndroidHttpHelpers::toStdString(env, message));
+    }
+
     static void readStatusAndHeaders(JNIEnv* env, jobject answer, ClientResponse& out)
     {
         const AndroidJniCache& cache = AndroidJniCache::instance();
@@ -244,11 +264,11 @@ public:
         auto names = static_cast<jobjectArray>(env->GetObjectField(answer, cache.headerNames));
         auto values = static_cast<jobjectArray>(env->GetObjectField(answer, cache.headerValues));
         out.headers = AndroidHttpHelpers::readHeaders(env, names, values);
-
-        env->DeleteLocalRef(names);
-        env->DeleteLocalRef(values);
     }
 };
+
+// one frame holds the request strings, both header arrays, the body, the answer and a little room to read it back
+constexpr jint kLocalFrameCapacity = 16;
 
 } // namespace
 
@@ -261,6 +281,7 @@ ClientResponse HttpClientPerform::perform(
 {
     Attachment attachment;
     JNIEnv* env = attachment.env();
+    const LocalFrame frame(env, kLocalFrameCapacity);
     const AndroidJniCache& cache = AndroidJniCache::instance();
 
     const AndroidRequest request(env, method, url, headers, body);
@@ -286,10 +307,8 @@ ClientResponse HttpClientPerform::perform(
         const jsize length = env->GetArrayLength(bytes);
         out.body.resize(static_cast<std::size_t>(length));
         env->GetByteArrayRegion(bytes, 0, length, reinterpret_cast<jbyte*>(out.body.data()));
-        env->DeleteLocalRef(bytes);
     }
 
-    env->DeleteLocalRef(answer);
     return out;
 }
 
@@ -304,13 +323,15 @@ void HttpClientPerform::performStream(
 {
     Attachment attachment;
     JNIEnv* env = attachment.env();
+    const LocalFrame frame(env, kLocalFrameCapacity);
     const AndroidJniCache& cache = AndroidJniCache::instance();
 
     const AndroidRequest request(env, method, url, headers, body);
 
-    // the sink carries the address of this frame, which outlives the call it is passed to
+    // java holds the sink only for the length of the call, so the target may live on this frame
     StreamTarget target{&onResponse, &onChunk};
     jobject sink = env->NewObject(cache.sink, cache.newSink, reinterpret_cast<jlong>(&target));
+    AndroidHttpRunner::rethrowPending(env);
 
     // clang-format off
     jobject answer = env->CallStaticObjectMethod(
@@ -322,11 +343,8 @@ void HttpClientPerform::performStream(
         sink);
     // clang-format on
 
-    env->DeleteLocalRef(sink);
-
     AndroidHttpRunner::rethrowPending(env);
     AndroidHttpRunner::rethrowFailure(env, answer);
-    env->DeleteLocalRef(answer);
 }
 
 void AndroidHttpBridge::publish(JavaVM* vm)
@@ -334,17 +352,48 @@ void AndroidHttpBridge::publish(JavaVM* vm)
     JNIEnv* env = nullptr;
     if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK)
     {
+        varn::log::Log::error("http", "the java virtual machine handed no environment to the http transport");
         return;
     }
 
-    // a pool thread attached later sees only the bootstrap classloader, so every class is resolved and pinned here
     AndroidJniCache& cache = AndroidJniCache::instance();
     cache.vm = vm;
-    cache.transport = static_cast<jclass>(env->NewGlobalRef(env->FindClass("com/varn/VarnHttp")));
-    cache.response = static_cast<jclass>(env->NewGlobalRef(env->FindClass("com/varn/VarnHttp$Response")));
-    cache.sink = static_cast<jclass>(env->NewGlobalRef(env->FindClass("com/varn/NativeChunkSink")));
-    cache.text = static_cast<jclass>(env->NewGlobalRef(env->FindClass("java/lang/String")));
-    cache.failure = static_cast<jclass>(env->NewGlobalRef(env->FindClass("java/lang/RuntimeException")));
+
+    // clang-format off
+    const auto pinClass = [env, &cache](const char* name) -> jclass
+    {
+        jclass found = env->FindClass(name);
+        if (found == nullptr)
+        {
+            env->ExceptionClear();
+            cache.unresolved = std::string("class ") + name;
+            return nullptr;
+        }
+
+        jclass pinned = static_cast<jclass>(env->NewGlobalRef(found));
+        env->DeleteLocalRef(found);
+        return pinned;
+    };
+    // clang-format on
+
+    // a pool thread attached later sees only the bootstrap classloader, so every class is resolved and pinned here
+    cache.transport = pinClass("com/varn/VarnHttp");
+    cache.sink = pinClass("com/varn/NativeChunkSink");
+    cache.text = pinClass("java/lang/String");
+    cache.failure = pinClass("java/lang/RuntimeException");
+
+    jclass response = env->FindClass("com/varn/VarnHttp$Response");
+    if (response == nullptr)
+    {
+        env->ExceptionClear();
+        cache.unresolved = "class com/varn/VarnHttp$Response";
+    }
+
+    if (!cache.unresolved.empty())
+    {
+        varn::log::Log::error("http", "the platform http transport could not resolve java " + cache.unresolved);
+        return;
+    }
 
     const char* performSignature =
         "(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;[BIZJ)Lcom/varn/VarnHttp$Response;";
@@ -357,11 +406,24 @@ void AndroidHttpBridge::publish(JavaVM* vm)
     cache.newSink = env->GetMethodID(cache.sink, "<init>", "(J)V");
     cache.sinkHandle = env->GetFieldID(cache.sink, "handle", "J");
 
-    cache.status = env->GetFieldID(cache.response, "status", "I");
-    cache.headerNames = env->GetFieldID(cache.response, "headerNames", "[Ljava/lang/String;");
-    cache.headerValues = env->GetFieldID(cache.response, "headerValues", "[Ljava/lang/String;");
-    cache.body = env->GetFieldID(cache.response, "body", "[B");
-    cache.error = env->GetFieldID(cache.response, "error", "Ljava/lang/String;");
+    cache.status = env->GetFieldID(response, "status", "I");
+    cache.headerNames = env->GetFieldID(response, "headerNames", "[Ljava/lang/String;");
+    cache.headerValues = env->GetFieldID(response, "headerValues", "[Ljava/lang/String;");
+    cache.body = env->GetFieldID(response, "body", "[B");
+    cache.error = env->GetFieldID(response, "error", "Ljava/lang/String;");
+    env->DeleteLocalRef(response);
+
+    // a renamed member is as fatal as a missing class, and the two are reported the same way
+    const bool resolved = cache.perform != nullptr && cache.performStream != nullptr && cache.newSink != nullptr &&
+                          cache.sinkHandle != nullptr && cache.status != nullptr && cache.headerNames != nullptr &&
+                          cache.headerValues != nullptr && cache.body != nullptr && cache.error != nullptr;
+
+    if (!resolved)
+    {
+        env->ExceptionClear();
+        cache.unresolved = "members of com/varn/VarnHttp";
+        varn::log::Log::error("http", "the platform http transport could not resolve java " + cache.unresolved);
+    }
 }
 
 } // namespace varn::http::client
@@ -409,6 +471,10 @@ extern "C"
         {
             NativeSinkTrampoline::reportAsJavaFailure(env, failure.what());
         }
+        catch (...)
+        {
+            NativeSinkTrampoline::reportAsJavaFailure(env, "[AndroidHttpClient] The response handler failed.");
+        }
     }
 
     JNIEXPORT void JNICALL Java_com_varn_NativeChunkSink_onChunk(JNIEnv* env, jobject self, jbyteArray chunk, jint length)
@@ -430,6 +496,10 @@ extern "C"
         catch (const std::exception& failure)
         {
             NativeSinkTrampoline::reportAsJavaFailure(env, failure.what());
+        }
+        catch (...)
+        {
+            NativeSinkTrampoline::reportAsJavaFailure(env, "[AndroidHttpClient] The chunk handler failed.");
         }
     }
 

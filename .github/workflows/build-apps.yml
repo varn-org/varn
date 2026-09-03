@@ -55,7 +55,7 @@ jobs:
 
       - name: Build
         working-directory: apps/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug assembleRelease --no-daemon
 
       # the apk is only useful when it carries the engine and the shared samples, so both are checked
       - name: Verify the apk
@@ -66,6 +66,17 @@ jobs:
           unzip -l "$APK" | grep -q "lib/arm64-v8a/libvarn.so"
           unzip -l "$APK" | grep -q "assets/manifest.json"
           test "$(unzip -l "$APK" | grep -c 'assets/lua/')" -eq "$(ls ../samples/lua | wc -l)"
+
+      # r8 renames anything it is not told to keep, so the minified apk is what proves the engine's keep rules work
+      - name: Verify the minified apk keeps the classes JNI resolves by name
+        working-directory: apps/android
+        run: |
+          APK=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -f "$APK"
+          rm -rf dex && unzip -o -q "$APK" 'classes*.dex' -d dex
+          for CLASS in VarnRuntime VarnHttp NativeChunkSink; do
+            grep -qa "Lcom/varn/$CLASS;" dex/*.dex || { echo "r8 stripped or renamed com.varn.$CLASS"; exit 1; }
+          done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
