@@ -75,7 +75,7 @@ public:
         }
     }
 
-    // the sha-1 and sha-256 families pad to a multiple of 64 bytes with a 64-bit big-endian bit length
+    // The sha-1 and sha-256 families pad to a multiple of 64 bytes with a 64-bit big-endian bit length.
     static std::string pad64(std::string_view data)
     {
         std::string message(data);
@@ -91,7 +91,7 @@ public:
         return message;
     }
 
-    // the sha-512 family pads to a multiple of 128 bytes with a 128-bit big-endian bit length
+    // The sha-512 family pads to a multiple of 128 bytes with a 128-bit big-endian bit length.
     static std::string pad128(std::string_view data)
     {
         std::string message(data);

@@ -111,7 +111,7 @@ Promise::State Promise::state() const
 
 void Promise::breakIfPending()
 {
-    // reject a still-pending promise whose only resolver was discarded, mirroring std::promise broken-promise semantics so awaiters resume and their coroutine refs are released
+    // Reject a still-pending promise whose only resolver was discarded, mirroring std::promise broken-promise semantics so awaiters resume and their coroutine refs are released.
     if (runtime.stopped())
     {
         return;
@@ -182,7 +182,7 @@ int Promise::prepareAwait(lua_State* L)
 
 void Promise::runPendingResumes()
 {
-    // skips the resume when the runtime is stopped and the lua state is gone
+    // Skips the resume when the runtime is stopped and the lua state is gone.
     if (runtime.stopped())
     {
         return;

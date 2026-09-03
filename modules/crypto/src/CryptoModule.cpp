@@ -113,7 +113,7 @@ int CryptoModule::luaEquals(lua_State* L)
     const char* a = luaL_checklstring(L, 1, &lenA);
     const char* b = luaL_checklstring(L, 2, &lenB);
 
-    // constant-time comparison with a length mismatch folded into the accumulator to report unequal
+    // Constant-time comparison with a length mismatch folded into the accumulator to report unequal.
     std::size_t diff = lenA ^ lenB;
     const std::size_t common = lenA < lenB ? lenA : lenB;
     for (std::size_t i = 0; i < common; ++i)
@@ -163,7 +163,7 @@ int CryptoModule::luaBase64UrlEncode(lua_State* L)
 
     try
     {
-        // url-safe alphabet without padding so the result is safe in urls and cookies
+        // Url-safe alphabet without padding so the result is safe in urls and cookies.
         const std::string out = CryptoPrimitives::base64Encode(data, true, false);
         lua_pushlstring(L, out.data(), out.size());
         return 1;

@@ -38,7 +38,6 @@ public:
     void postDelayed(long long delayMs, Job job);
     void run();
     bool poll();
-    bool pending() const;
     void stop();
     void wake();
 
@@ -67,6 +66,7 @@ public:
 private:
     struct Poller;
     void drainReady();
+    bool pending() const;
     void wakeFromAnotherThread();
 #if !defined(__EMSCRIPTEN__)
     bool onLoopThread() const;

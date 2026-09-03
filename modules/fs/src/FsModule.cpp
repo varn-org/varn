@@ -32,7 +32,7 @@ public:
     {
         std::string path = varn::lua::LuaHelpers::checkString(L, index);
 
-        // reject a path containing a null byte
+        // Reject a path containing a null byte.
         if (path.find('\0') != std::string::npos)
         {
             luaL_error(L, "[FsModule] A path must not contain a null byte.");

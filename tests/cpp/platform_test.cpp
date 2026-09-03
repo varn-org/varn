@@ -23,7 +23,7 @@ TEST(PlatformLibraryName, AppliesPlatformPrefixAndSuffix)
 }
 
 #ifndef _WIN32
-// on posix an existing lib prefix or shared-object extension is normalized to a single canonical form
+// On posix an existing lib prefix or shared-object extension is normalized to a single canonical form.
 TEST(PlatformLibraryName, NormalizesExistingPrefixAndExtension)
 {
     const std::string canonical = PlatformInfo::libraryFilenameForName("foo");

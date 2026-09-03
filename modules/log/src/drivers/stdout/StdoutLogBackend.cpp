@@ -33,7 +33,7 @@ public:
 
     static std::mutex& mutex()
     {
-        // guards the sink shared by worker threads and the loop thread
+        // Guards the sink shared by worker threads and the loop thread.
         static std::mutex sink;
         return sink;
     }
@@ -84,7 +84,7 @@ void Log::addFileSink(std::string_view path, bool /*rotating*/)
     std::lock_guard<std::mutex> lock(StdoutBridge::mutex());
     std::ofstream& file = StdoutBridge::file();
 
-    // close any previous sink and clear stale error state so a second call reliably reopens
+    // Close any previous sink and clear stale error state so a second call reliably reopens.
     if (file.is_open())
     {
         file.close();

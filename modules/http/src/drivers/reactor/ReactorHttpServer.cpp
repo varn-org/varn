@@ -69,7 +69,7 @@ constexpr int kReadChunk = 65536;
 constexpr std::size_t kFileChunkBytes = 64 * 1024;
 constexpr long long kSweepIntervalMs = 1000;
 
-// these mirror Poco::Net::SecureStreamSocket::ERR_SSL_WANT_READ and ERR_SSL_WANT_WRITE, so tls i/o needs no ssl header here
+// These mirror Poco::Net::SecureStreamSocket::ERR_SSL_WANT_READ and ERR_SSL_WANT_WRITE, so tls i/o needs no ssl header here.
 constexpr int kSslWantRead = -2;
 constexpr int kSslWantWrite = -3;
 
@@ -124,7 +124,7 @@ public:
 #if defined(VARN_HAS_SENDFILE)
     static FileSend sendFileToSocket(int socketFd, int fileFd, std::uint64_t offset, std::size_t count, std::size_t& sent)
     {
-        // hand up to count bytes from the open file straight to the socket without copying through user space, reporting the bytes moved in sent
+        // Hand up to count bytes from the open file straight to the socket without copying through user space, reporting the bytes moved in sent.
         sent = 0;
 
 #if defined(__linux__)
@@ -168,7 +168,7 @@ public:
     }
 #endif
 
-    // drops the already-sent prefix once it dominates the buffer, so a peer that only ever drains partially cannot grow it with the connection's cumulative traffic
+    // Drops the already-sent prefix once it dominates the buffer, so a peer that only ever drains partially cannot grow it with the connection's cumulative traffic.
     static void compactSent(std::string& buffer, std::size_t& offset)
     {
         if (offset == 0 || offset < buffer.size() / 2)
@@ -237,7 +237,7 @@ public:
         case 504:
             return "Gateway Timeout";
         default:
-            // leave the reason phrase empty for an unlisted code since http allows it and inventing "OK" would misdescribe the status
+            // Leave the reason phrase empty for an unlisted code since http allows it and inventing "OK" would misdescribe the status.
             return "";
         }
     }
@@ -261,7 +261,7 @@ public:
 #if defined(VARN_HAVE_ZLIB)
     static bool gzipEncode(const std::string& input, std::string& output)
     {
-        // gzip a body with the standard 16+MAX_WBITS window so the output carries a gzip header rather than raw deflate
+        // Gzip a body with the standard 16+MAX_WBITS window so the output carries a gzip header rather than raw deflate.
         z_stream stream{};
         if (deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 16 + MAX_WBITS, 8, Z_DEFAULT_STRATEGY) != Z_OK)
         {
@@ -291,7 +291,7 @@ public:
 
     static bool compressibleType(const std::string& contentType)
     {
-        // json, xml and any text/* payload compress well, whereas already-encoded media gains nothing
+        // Json, xml and any text/* payload compress well, whereas already-encoded media gains nothing.
         std::string lowered = contentType;
         Poco::toLowerInPlace(lowered);
         return lowered.rfind("text/", 0) == 0 || lowered.rfind("application/json", 0) == 0 || lowered.rfind("application/xml", 0) == 0;
@@ -317,7 +317,7 @@ public:
         { return static_cast<unsigned char>(buffer[i]); };
         frame.fin = (byteAt(0) & 0x80) != 0;
 
-        // no extension is negotiated, so any reserved bit set is a protocol error
+        // No extension is negotiated, so any reserved bit set is a protocol error.
         if ((byteAt(0) & 0x70) != 0)
         {
             return WsParse::Error;
@@ -425,7 +425,7 @@ public:
     static void scheduleSweep(EventLoop& loop, std::shared_ptr<std::vector<std::weak_ptr<HttpConnection>>> registry, std::shared_ptr<std::atomic<bool>> stopping, long long timeoutMs);
 };
 
-// the response is filled by the lua handler on the loop thread and handed to the connection's i/o thread when end runs
+// The response is filled by the lua handler on the loop thread and handed to the connection's i/o thread when end runs.
 class ReactorResponse final : public HttpResponse
 {
 public:
@@ -499,7 +499,7 @@ private:
     std::string bodyBuffer;
 };
 
-// one connection state machine, multiplexed on the reactor i/o thread and kept alive by the handlers and the response that reference it
+// One connection state machine, multiplexed on the reactor i/o thread and kept alive by the handlers and the response that reference it.
 class HttpConnection final : public std::enable_shared_from_this<HttpConnection>, public WebSocketConnection
 {
 public:
@@ -557,7 +557,7 @@ public:
             return true;
         }
 
-        // a response that has stopped draining for the timeout is a slow-read client holding the slot open
+        // A response that has stopped draining for the timeout is a slow-read client holding the slot open.
         return !writeBuffer.empty() && (now - lastWriteMs) > timeoutMs;
     }
 
@@ -568,7 +568,7 @@ public:
 
     void submitResponse(std::string data, bool keepAliveAfter)
     {
-        // drop the response if the connection was already force-closed while the handler was still awaiting
+        // Drop the response if the connection was already force-closed while the handler was still awaiting.
         if (closed)
         {
             return;
@@ -585,13 +585,13 @@ public:
 
     void submitStreamChunk(std::string data, bool keepAliveAfter, bool last)
     {
-        // a streaming response appends each chunk to the unflushed tail and arms a single writer, only finishing the connection on the last chunk
+        // A streaming response appends each chunk to the unflushed tail and arms a single writer, only finishing the connection on the last chunk.
         if (closed)
         {
             return;
         }
 
-        // drop a peer that has stopped draining so a stalled client cannot grow the backlog without bound
+        // Drop a peer that has stopped draining so a stalled client cannot grow the backlog without bound.
         if ((writeBuffer.size() - writeOffset) + data.size() > kStreamMaxOutBytes)
         {
             closeNow();
@@ -602,13 +602,13 @@ public:
         streamingActive = !last;
         keepAlive = keepAliveAfter;
 
-        // a writer is already draining the buffer, so the appended bytes ride along without a second queued handler
+        // A writer is already draining the buffer, so the appended bytes ride along without a second queued handler.
         if (streamWriteArmed)
         {
             return;
         }
 
-        // the writer starts draining now, so the staleness clock begins here and only a real flush advances it afterwards
+        // The writer starts draining now, so the staleness clock begins here and only a real flush advances it afterwards.
         lastWriteMs = ReactorHelpers::nowMs();
         streamWriteArmed = true;
         auto self = shared_from_this();
@@ -618,7 +618,7 @@ public:
 
     void streamFile(std::string head, std::string path, std::uint64_t start, std::uint64_t length, bool headersOnly, bool keepAliveAfter)
     {
-        // drop the response if the connection was already force-closed while the handler was still awaiting
+        // Drop the response if the connection was already force-closed while the handler was still awaiting.
         if (closed)
         {
             return;
@@ -629,7 +629,7 @@ public:
         lastWriteMs = ReactorHelpers::nowMs();
         keepAlive = keepAliveAfter;
 
-        // a head-only response or an empty range has no body to stream after the headers
+        // A head-only response or an empty range has no body to stream after the headers.
         fileMode = !headersOnly && length > 0;
         if (fileMode)
         {
@@ -655,7 +655,7 @@ public:
         response += "Connection: Upgrade\r\n";
         response += "Sec-WebSocket-Accept: " + ReactorHelpers::computeWsAccept(wsKey) + "\r\n\r\n";
 
-        // drop the consumed handshake request so the frame parser starts on client frame bytes
+        // Drop the consumed handshake request so the frame parser starts on client frame bytes.
         readBuffer.erase(0, wsRequestEnd);
 
         wsMode = true;
@@ -718,7 +718,7 @@ private:
         Error
     };
 
-    // an i/o attempt either wants the same direction again, wants the opposite direction (tls renegotiation or handshake), or is done with the connection
+    // An i/o attempt either wants the same direction again, wants the opposite direction (tls renegotiation or handshake), or is done with the connection.
     enum class Io
     {
         Again,
@@ -783,7 +783,7 @@ private:
 
         if (result == Io::Switch)
         {
-            // the tls layer needs the socket writable before this read can progress
+            // The tls layer needs the socket writable before this read can progress.
             auto self = shared_from_this();
             // clang-format off
             loop.watchWrite(socket, [self]() -> bool
@@ -850,7 +850,7 @@ private:
             return Io::Again;
         }
 
-        // a streaming response only watches the read side to learn the client left, ignoring any bytes it sends mid-stream
+        // A streaming response only watches the read side to learn the client left, ignoring any bytes it sends mid-stream.
         if (streamingActive)
         {
             return Io::Again;
@@ -870,7 +870,7 @@ private:
 
         if (result == Io::Switch)
         {
-            // the tls layer needs the socket readable before this write can progress
+            // The tls layer needs the socket readable before this write can progress.
             auto self = shared_from_this();
             // clang-format off
             loop.watchRead(socket, [self]() -> bool
@@ -932,11 +932,11 @@ private:
             lastWriteMs = ReactorHelpers::nowMs();
         }
 
-        // a file response sends its body before the connection's keep-alive fate is decided
+        // A file response sends its body before the connection's keep-alive fate is decided.
         if (fileMode && fileRemaining > 0)
         {
 #if defined(VARN_HAS_SENDFILE)
-            // tls must encrypt in user space, so only a plaintext socket can hand the file straight to the kernel
+            // Tls must encrypt in user space, so only a plaintext socket can hand the file straight to the kernel.
             if (options.tls)
             {
                 readNextChunk();
@@ -977,7 +977,7 @@ private:
                     return Io::Again;
                 }
 
-                // an early eof or a transfer error ends the body, so the connection cannot be reused
+                // An early eof or a transfer error ends the body, so the connection cannot be reused.
                 keepAlive = false;
                 break;
             }
@@ -990,18 +990,18 @@ private:
         fileMode = false;
         closeFileFd();
 
-        // the rejection response is flushed, but the connection stays open until the read side has drained the upload
+        // The rejection response is flushed, but the connection stays open until the read side has drained the upload.
         if (draining)
         {
             return Io::Detached;
         }
 
-        // once the websocket handshake response is flushed the connection switches to reading client frames
+        // Once the websocket handshake response is flushed the connection switches to reading client frames.
         if (wsMode)
         {
             armRead();
 
-            // drain any frames the client pipelined with the handshake instead of waiting for the next readable event
+            // Drain any frames the client pipelined with the handshake instead of waiting for the next readable event.
             if (!readBuffer.empty())
             {
                 wsProcess();
@@ -1010,14 +1010,14 @@ private:
             return Io::Detached;
         }
 
-        // a streaming response has flushed this chunk and waits for the next one while watching the read side for a client disconnect
+        // A streaming response has flushed this chunk and waits for the next one while watching the read side for a client disconnect.
         if (streamingActive)
         {
             writeBuffer.clear();
             writeOffset = 0;
             streamWriteArmed = false;
 
-            // arm the disconnect watcher once since the reader re-pushes itself for the whole stream
+            // Arm the disconnect watcher once since the reader re-pushes itself for the whole stream.
             if (!streamReadArmed)
             {
                 streamReadArmed = true;
@@ -1033,7 +1033,7 @@ private:
             return Io::Detached;
         }
 
-        // a kept-alive connection preserves any pipelined bytes and either parses the next request now or waits for more
+        // A kept-alive connection preserves any pipelined bytes and either parses the next request now or waits for more.
         resetForNextRequest();
         if (readBuffer.empty())
         {
@@ -1092,7 +1092,7 @@ private:
         }
         else
         {
-            // reject a content-length that would overflow the offset math regardless of whether the body cap is enabled
+            // Reject a content-length that would overflow the offset math regardless of whether the body cap is enabled.
             if (contentLength > readBuffer.max_size() - bodyStart)
             {
                 sendSimpleAndClose(400);
@@ -1119,7 +1119,7 @@ private:
             const std::size_t lineEnd = readBuffer.find("\r\n", chunkPos);
             if (lineEnd == std::string::npos)
             {
-                // an unterminated chunk-size line past the cap is a framing attack rather than a slow client
+                // An unterminated chunk-size line past the cap is a framing attack rather than a slow client.
                 return readBuffer.size() - chunkPos > kMaxChunkLineBytes ? ChunkResult::Error : ChunkResult::NeedMore;
             }
 
@@ -1142,7 +1142,7 @@ private:
                 return consumeTrailers(dataStart);
             }
 
-            // reject a declared size that overflows the offset math or exceeds the body cap before the chunk is buffered
+            // Reject a declared size that overflows the offset math or exceeds the body cap before the chunk is buffered.
             if (chunkSize > readBuffer.max_size() - dataStart - 2)
             {
                 return ChunkResult::Error;
@@ -1153,7 +1153,7 @@ private:
                 return ChunkResult::Error;
             }
 
-            // a chunk needs its declared bytes plus the trailing crlf before it can be consumed
+            // A chunk needs its declared bytes plus the trailing crlf before it can be consumed.
             if (readBuffer.size() < dataStart + chunkSize + 2)
             {
                 return ChunkResult::NeedMore;
@@ -1188,7 +1188,7 @@ private:
 
             position = crlf + 2;
 
-            // bound the whole trailer section so a flood of tiny trailer lines cannot grow the buffer unbounded or force a quadratic rescan
+            // Bound the whole trailer section so a flood of tiny trailer lines cannot grow the buffer unbounded or force a quadratic rescan.
             if (position - trailerStart > kMaxChunkLineBytes)
             {
                 return ChunkResult::Error;
@@ -1401,7 +1401,7 @@ private:
         llhttp_reset(&parser);
         parser.data = this;
 
-        // llhttp parses the request line and headers in place and rejects smuggling, duplicate content-length, and malformed framing
+        // Llhttp parses the request line and headers in place and rejects smuggling, duplicate content-length, and malformed framing.
         const llhttp_errno_t status = llhttp_execute(&parser, readBuffer.data(), headersEnd + 4);
         if (status != HPE_OK && status != HPE_PAUSED_UPGRADE)
         {
@@ -1420,7 +1420,7 @@ private:
         const std::string contentLengthValue = headerValue(pendingHeaders, "Content-Length");
         if (!transferEncoding.empty())
         {
-            // only chunked is supported, and it must not be combined with a content-length
+            // Only chunked is supported, and it must not be combined with a content-length.
             if (Poco::icompare(transferEncoding, "chunked") != 0 || !contentLengthValue.empty())
             {
                 sendSimpleAndClose(400);
@@ -1466,7 +1466,7 @@ private:
             keepAlive = Poco::icompare(connectionHeader, "close") != 0;
         }
 
-        // split the target into path and query in place, decoding only the parts that carry escapes
+        // Split the target into path and query in place, decoding only the parts that carry escapes.
         const std::size_t queryStart = pendingTarget.find('?');
         const std::string rawPath = queryStart == std::string::npos ? pendingTarget : pendingTarget.substr(0, queryStart);
         pendingPath = rawPath.find('%') == std::string::npos ? rawPath : urlDecode(rawPath, false);
@@ -1532,7 +1532,7 @@ private:
 
         auto response = std::make_shared<ReactorResponse>(shared_from_this(), keepAlive, request.method == "HEAD", gzipAllowed);
 
-        // a matching public file is served ahead of the user handler and streamed off the loop
+        // A matching public file is served ahead of the user handler and streamed off the loop.
         if (staticFiles && staticFiles->tryServe(request, *response))
         {
             return;
@@ -1595,7 +1595,7 @@ private:
     {
         const bool isControl = (frame.opcode & 0x08) != 0;
 
-        // a control frame must be final and at most 125 bytes, and only defined opcodes are accepted
+        // A control frame must be final and at most 125 bytes, and only defined opcodes are accepted.
         if (isControl)
         {
             const bool knownControl = frame.opcode == kWsClose || frame.opcode == kWsPing || frame.opcode == kWsPong;
@@ -1613,14 +1613,14 @@ private:
 
         if (frame.opcode == kWsClose)
         {
-            // a close payload is either empty or a 2-byte code plus optional reason, so a single byte is malformed
+            // A close payload is either empty or a 2-byte code plus optional reason, so a single byte is malformed.
             if (frame.payload.size() == 1)
             {
                 closeNow();
                 return false;
             }
 
-            // echo the close and let the writer close the socket once it flushes so the close handshake completes
+            // Echo the close and let the writer close the socket once it flushes so the close handshake completes.
             wsSend(kWsClose, frame.payload);
             wsCloseAfterFlush = true;
             return false;
@@ -1637,11 +1637,11 @@ private:
             return true;
         }
 
-        // data frames assemble across fragments into one message, enforcing the continuation state machine
+        // Data frames assemble across fragments into one message, enforcing the continuation state machine.
         const bool isContinuation = frame.opcode == kWsContinuation;
         if (isContinuation != wsFragmentOpen)
         {
-            // a continuation without an open message, or a fresh data frame while one is still open, violates the framing
+            // A continuation without an open message, or a fresh data frame while one is still open, violates the framing.
             closeNow();
             return false;
         }
@@ -1676,7 +1676,7 @@ private:
     {
         const std::string frame = ReactorHelpers::buildWsFrame(opcode, payload);
 
-        // close instead of buffering without bound when the peer stops draining its socket
+        // Close instead of buffering without bound when the peer stops draining its socket.
         if ((wsOut.size() - wsOutOffset) + frame.size() > kWsMaxOutBytes)
         {
             closeNow();
@@ -1773,7 +1773,7 @@ private:
         const std::size_t got = chunk.size();
         fileOffset += got;
 
-        // a short read means the file ended before its declared length, so the stream stops and the connection closes
+        // A short read means the file ended before its declared length, so the stream stops and the connection closes.
         if (got < want)
         {
             fileRemaining = 0;
@@ -1826,7 +1826,7 @@ private:
 
     void beginRejectDrain(int code)
     {
-        // reject the oversized upload but read off the rest of the body first, so the close is a clean fin rather than a reset that loses the response
+        // Reject the oversized upload but read off the rest of the body first, so the close is a clean fin rather than a reset that loses the response.
         const std::size_t received = readBuffer.size() - bodyStart;
         drainRemaining = contentLength > received ? contentLength - received : 0;
         readBuffer.clear();
@@ -2058,7 +2058,7 @@ void ReactorResponse::end(const std::string& body)
         return;
     }
 
-    // a streaming response finishes through its chunked terminator, so a stray end flushes the last data as a chunk instead of a framed body
+    // A streaming response finishes through its chunked terminator, so a stray end flushes the last data as a chunk instead of a framed body.
     if (chunkedMode)
     {
         if (!body.empty())
@@ -2081,7 +2081,7 @@ void ReactorResponse::end(const std::string& body)
 
     std::string head = buildHead(bodyBuffer.size(), !bodyless);
 
-    // a head request still advertises Content-Length but carries no body
+    // A head request still advertises Content-Length but carries no body.
     if (!bodyless && !headersOnly)
     {
         head += bodyBuffer;
@@ -2114,7 +2114,7 @@ void ReactorResponse::writeChunk(const std::string& chunk)
 
     std::string frame = chunkedHead();
 
-    // an empty write carries no chunk, since a zero-length chunk would terminate the stream early
+    // An empty write carries no chunk, since a zero-length chunk would terminate the stream early.
     if (!chunk.empty() && !headersOnly)
     {
         std::ostringstream size;
@@ -2154,7 +2154,7 @@ std::string ReactorResponse::chunkedHead()
 
     chunkedHeadSent = true;
 
-    // the head leads the stream once with chunked transfer encoding in place of a content length
+    // The head leads the stream once with chunked transfer encoding in place of a content length.
     std::string head = buildHead(0, false);
     if (head.size() >= 2)
     {
@@ -2186,7 +2186,7 @@ void ReactorHelpers::scheduleSweep(EventLoop& loop, std::shared_ptr<std::vector<
     {
         if (stopping->load(std::memory_order_acquire))
         {
-            // force-close every live connection so its close handler runs and releases its lua reference, instead of leaking on shutdown
+            // Force-close every live connection so its close handler runs and releases its lua reference, instead of leaking on shutdown.
             for (auto& weak : *registry)
             {
                 if (auto connection = weak.lock())
@@ -2199,7 +2199,7 @@ void ReactorHelpers::scheduleSweep(EventLoop& loop, std::shared_ptr<std::vector<
             return;
         }
 
-        // close connections still idle-receiving past the deadline and compact the registry in place
+        // Close connections still idle-receiving past the deadline and compact the registry in place.
         const long long now = ReactorHelpers::nowMs();
         auto& connections = *registry;
         std::size_t kept = 0;
@@ -2211,7 +2211,7 @@ void ReactorHelpers::scheduleSweep(EventLoop& loop, std::shared_ptr<std::vector<
                 continue;
             }
 
-            // a non-positive timeout keeps connections open, so the sweep only compacts the registry then
+            // A non-positive timeout keeps connections open, so the sweep only compacts the registry then.
             if (timeoutMs > 0 && connection->isStale(now, timeoutMs))
             {
                 connection->forceClose();
@@ -2258,7 +2258,7 @@ void ReactorHttpServer::start()
     const Poco::Net::SocketAddress address(serverOptions.host, static_cast<Poco::UInt16>(serverOptions.port));
     const int backlog = std::clamp(serverOptions.maxQueued, 1, 65535);
 
-    // bind with so_reuseport so every worker process shares the same listening port and the kernel load-balances accepts
+    // Bind with so_reuseport so every worker process shares the same listening port and the kernel load-balances accepts.
 #ifdef VARN_ENABLE_TLS
     if (serverOptions.tls)
     {
@@ -2286,7 +2286,7 @@ void ReactorHttpServer::start()
     listener.setBlocking(false);
 
 #if defined(__linux__)
-    // defer accept until the client's first request bytes arrive, so the first read always has data and connect-only floods never reach the loop
+    // Defer accept until the client's first request bytes arrive, so the first read always has data and connect-only floods never reach the loop.
     {
         const int deferSeconds = std::clamp(serverOptions.keepAliveTimeoutSeconds, 1, 600);
         ::setsockopt(listener.impl()->sockfd(), IPPROTO_TCP, TCP_DEFER_ACCEPT, &deferSeconds, sizeof(deferSeconds));
@@ -2317,7 +2317,7 @@ void ReactorHttpServer::start()
             return true;
         }
 
-        // drain every pending connection so a single readiness event accepts the full backlog
+        // Drain every pending connection so a single readiness event accepts the full backlog.
         for (;;)
         {
             Poco::Net::StreamSocket accepted;
@@ -2339,7 +2339,7 @@ void ReactorHttpServer::start()
     });
     // clang-format on
 
-    // the sweep also compacts the connection registry, so it runs even when the idle and slowloris timeout is disabled
+    // The sweep also compacts the connection registry, so it runs even when the idle and slowloris timeout is disabled.
     ReactorHelpers::scheduleSweep(loop, registry, stopping, timeoutMs);
 }
 

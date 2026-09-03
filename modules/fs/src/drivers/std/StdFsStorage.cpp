@@ -20,13 +20,13 @@ namespace
 class StdFsPathHelpers
 {
 public:
-    // build a path from utf-8 code units so windows converts to the native wide encoding instead of the active code page
+    // Build a path from utf-8 code units so windows converts to the native wide encoding instead of the active code page.
     static std::filesystem::path toPath(const std::string& utf8)
     {
         return std::filesystem::path(std::u8string(utf8.begin(), utf8.end()));
     }
 
-    // return a native path as utf-8 so listings and generated names read the same across desktop os
+    // Return a native path as utf-8 so listings and generated names read the same across desktop os.
     static std::string fromPath(const std::filesystem::path& path)
     {
         const std::u8string encoded = path.u8string();
@@ -39,7 +39,7 @@ std::string FsStorage::readAll(const std::string& path)
 {
     const std::filesystem::path p = StdFsPathHelpers::toPath(path);
 
-    // refuse endless streams like devices or fifos so a read into memory always terminates
+    // Refuse endless streams like devices or fifos so a read into memory always terminates.
     std::error_code ec;
     if (!std::filesystem::is_regular_file(std::filesystem::status(p, ec)) || ec)
     {
@@ -52,7 +52,7 @@ std::string FsStorage::readAll(const std::string& path)
         throw std::runtime_error("[FsStorage] The file could not be opened for reading.");
     }
 
-    // read the whole file into memory in chunks
+    // Read the whole file into memory in chunks.
     std::string out;
     char chunk[65536];
     while (file)
@@ -67,7 +67,7 @@ std::string FsStorage::readAll(const std::string& path)
         out.append(chunk, static_cast<std::size_t>(got));
     }
 
-    // report a read fault instead of returning a truncated result
+    // Report a read fault instead of returning a truncated result.
     if (file.bad())
     {
         throw std::runtime_error("[FsStorage] The file could not be read.");
@@ -128,7 +128,7 @@ FsStat FsStorage::stat(const std::string& path)
     const std::filesystem::path p = StdFsPathHelpers::toPath(path);
     std::error_code ec;
 
-    // read symlink status without following the target
+    // Read symlink status without following the target.
     const std::filesystem::file_status linkStatus = std::filesystem::symlink_status(p, ec);
     if (ec || linkStatus.type() == std::filesystem::file_type::not_found)
     {
@@ -158,7 +158,7 @@ FsStat FsStorage::stat(const std::string& path)
     const auto fileTime = std::filesystem::last_write_time(p, ec);
     if (!ec)
     {
-        // map the file clock onto the system clock to get epoch seconds
+        // Map the file clock onto the system clock to get epoch seconds.
         const auto systemTime = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
             fileTime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
         result.mtime = static_cast<std::int64_t>(std::chrono::system_clock::to_time_t(systemTime));
@@ -239,7 +239,7 @@ std::string FsStorage::mkdtemp(const std::string& prefix)
     std::mt19937_64 generator(device());
     std::uniform_int_distribution<std::uint64_t> distribution;
 
-    // probe random suffixes until create_directory claims an unused name
+    // Probe random suffixes until create_directory claims an unused name.
     for (int attempt = 0; attempt < 256; ++attempt)
     {
         const std::string suffix = std::to_string(distribution(generator));
@@ -249,7 +249,7 @@ std::string FsStorage::mkdtemp(const std::string& prefix)
         std::error_code ec;
         if (std::filesystem::create_directory(candidate, ec) && !ec)
         {
-            // restrict the directory to its owner like posix mkdtemp so its contents stay private to this user
+            // Restrict the directory to its owner like posix mkdtemp so its contents stay private to this user.
             std::filesystem::permissions(candidate, std::filesystem::perms::owner_all, std::filesystem::perm_options::replace, ec);
             return StdFsPathHelpers::fromPath(candidate);
         }
@@ -276,7 +276,7 @@ public:
             throw std::runtime_error("[FsStorage] The file handle is closed.");
         }
 
-        // grow the buffer in chunks so a large maxBytes never pre-allocates more than the file actually holds
+        // Grow the buffer in chunks so a large maxBytes never pre-allocates more than the file actually holds.
         constexpr std::size_t kChunk = 1u << 16;
         std::string buffer;
         while (buffer.size() < maxBytes)
@@ -287,7 +287,7 @@ public:
             stream.read(buffer.data() + base, static_cast<std::streamsize>(want));
             const std::streamsize got = stream.gcount();
 
-            // report a read fault instead of returning a short read
+            // Report a read fault instead of returning a short read.
             if (stream.bad())
             {
                 throw std::runtime_error("[FsStorage] The file handle could not be read.");
@@ -300,7 +300,7 @@ public:
             }
         }
 
-        // clear eof and fail bits to keep the handle usable
+        // Clear eof and fail bits to keep the handle usable.
         stream.clear();
         return buffer;
     }

@@ -17,7 +17,7 @@ void LogModule::emitAt(lua_State* L, Level level)
         return;
     }
 
-    // treat a trailing table as structured key=value fields
+    // Treat a trailing table as structured key=value fields.
     int messageCount = n;
     if (n >= 2 && lua_type(L, n) == LUA_TTABLE)
     {
@@ -80,7 +80,7 @@ void LogModule::appendValue(lua_State* L, int index, std::string& out, int depth
         return;
     }
 
-    // pop the text pushed by luaL_tolstring after appending it
+    // Pop the text pushed by luaL_tolstring after appending it.
     size_t len = 0;
     const char* text = luaL_tolstring(L, index, &len);
     out.append(text, len);
@@ -99,7 +99,7 @@ void LogModule::appendKey(lua_State* L, int index, std::string& out)
         return;
     }
 
-    // coerce a copy so lua_next still sees the original key
+    // Coerce a copy so lua_next still sees the original key.
     out += '[';
     lua_pushvalue(L, index);
     size_t len = 0;

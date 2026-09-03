@@ -69,7 +69,8 @@ TEST(CApi, RegisteredHostFunctionRoundTripsThroughLua)
 
 TEST(CApi, StopFromAnotherThreadTearsDownAListeningServer)
 {
-    // run_string blocks driving the loop so a host can only stop from another thread, and the script leaves behind the listening server and the io pool that the teardown then reaches across that boundary
+    // A host can only stop from another thread, since run_string blocks while it drives the loop.
+    // The script leaves behind the listening server and the io pool that the teardown then reaches across that boundary.
     varn_runtime* rt = varn_runtime_new();
     ASSERT_NE(rt, nullptr);
 
@@ -91,14 +92,14 @@ TEST(CApi, StopFromAnotherThreadTearsDownAListeningServer)
     });
     // clang-format on
 
-    // let the loop reach the listening state before the stop arrives
+    // Let the loop reach the listening state before the stop arrives.
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     varn_runtime_stop(rt);
     runner.join();
 
     EXPECT_EQ(exitCode, 0);
 
-    // a second stop is a no-op, and the free that follows must still join every thread cleanly
+    // A second stop is a no-op, and the free that follows must still join every thread cleanly.
     varn_runtime_stop(rt);
     varn_runtime_free(rt);
 }
@@ -114,7 +115,7 @@ TEST(CApi, GuardsNullArguments)
     EXPECT_EQ(varn_runtime_run_string(rt, nullptr, "c"), 2);
     varn_runtime_free(rt);
 
-    // freeing a null runtime is safe
+    // Freeing a null runtime is safe.
     varn_runtime_free(nullptr);
 }
 

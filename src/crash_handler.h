@@ -160,7 +160,7 @@ inline LONG WINAPI CrashHandler::crashFilter(EXCEPTION_POINTERS* info)
 inline void CrashHandler::printBacktrace()
 {
 #if defined(VARN_HAS_EXECINFO)
-    // backtrace_symbols_fd is async-signal-safe and backtrace is pre-warmed in install so its first-use allocation is already done, unlike backtrace_symbols which is never called here
+    // Backtrace_symbols_fd is async-signal-safe and backtrace is pre-warmed in install so its first-use allocation is already done, unlike backtrace_symbols which is never called here.
     void* frames[64];
     const int count = backtrace(frames, 64);
     backtrace_symbols_fd(frames, count, STDERR_FILENO);
@@ -186,7 +186,7 @@ inline const char* CrashHandler::signalName(int sig)
 
 inline void CrashHandler::crashSignalHandler(int sig)
 {
-    // only async-signal-safe calls are allowed here since this runs inside a fatal fault
+    // Only async-signal-safe calls are allowed here since this runs inside a fatal fault.
     const char* prefix = "\n[CrashHandler] Fatal signal: ";
     const char* name = signalName(sig);
 
@@ -197,7 +197,7 @@ inline void CrashHandler::crashSignalHandler(int sig)
 
     printBacktrace();
 
-    // restore the default action and re-raise so the process terminates with the faulting signal
+    // Restore the default action and re-raise so the process terminates with the faulting signal.
     signal(sig, SIG_DFL);
     raise(sig);
 }
@@ -248,7 +248,7 @@ inline void CrashHandler::install()
     SetThreadStackGuarantee(&reserve);
     SetUnhandledExceptionFilter(&CrashHandler::crashFilter);
 #else
-    // run the handler on a dedicated stack so a stack-overflow fault can still be reported
+    // Run the handler on a dedicated stack so a stack-overflow fault can still be reported.
     static char alternateStack[65536];
     stack_t altStack{};
     altStack.ss_sp = alternateStack;
@@ -257,7 +257,7 @@ inline void CrashHandler::install()
     sigaltstack(&altStack, nullptr);
 
 #if defined(VARN_HAS_EXECINFO)
-    // warm the unwinder now so the in-handler backtrace does not have to dlopen or allocate during a fatal fault
+    // Warm the unwinder now so the in-handler backtrace does not have to dlopen or allocate during a fatal fault.
     void* warmup[1];
     (void)backtrace(warmup, 1);
 #endif

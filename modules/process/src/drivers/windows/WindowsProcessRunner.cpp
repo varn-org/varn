@@ -24,7 +24,7 @@ namespace varn::process
 
 namespace
 {
-// bound the captured output so a child that streams without end cannot exhaust host memory
+// Bound the captured output so a child that streams without end cannot exhaust host memory.
 constexpr std::size_t kMaxCaptureBytes = 64 * 1024 * 1024;
 
 class WindowsProcessHelpers
@@ -56,7 +56,7 @@ public:
         return utf8;
     }
 
-    // reads until the write ends are closed, stopping once the combined capture reaches the cap
+    // Reads until the write ends are closed, stopping once the combined capture reaches the cap.
     static std::string drainPipe(HANDLE pipe, std::atomic<std::size_t>& captured)
     {
         std::string out;
@@ -84,7 +84,7 @@ public:
         return out;
     }
 
-    // killing cmd.exe alone leaves its command running with the inherited pipe ends, so the job is terminated when there is one
+    // Killing cmd.exe alone leaves its command running with the inherited pipe ends, so the job is terminated when there is one.
     static void killTree(HANDLE job, HANDLE fallback)
     {
         if (job != nullptr)
@@ -124,11 +124,11 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
     HANDLE errRead = nullptr;
     HANDLE errWrite = nullptr;
 
-    // serialize handle creation and process start so a concurrent spawn cannot inherit these write handles
+    // Serialize handle creation and process start so a concurrent spawn cannot inherit these write handles.
     static std::mutex spawnMutex;
     PROCESS_INFORMATION process{};
 
-    // terminating cmd.exe leaves the command it started alive, still holding the inherited pipe ends, so the child goes into a job that gives the deadline and the output cap a handle on the whole tree
+    // Terminating cmd.exe leaves the command it started alive, still holding the inherited pipe ends, so the child goes into a job that gives the deadline and the output cap a handle on the whole tree.
     HANDLE job = CreateJobObjectW(nullptr, nullptr);
 
     {
@@ -143,7 +143,7 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
             throw std::runtime_error("[ProcessRunner] A pipe could not be created.");
         }
 
-        // keep the parent read ends out of child inheritance
+        // Keep the parent read ends out of child inheritance.
         SetHandleInformation(outRead, HANDLE_FLAG_INHERIT, 0);
         SetHandleInformation(errRead, HANDLE_FLAG_INHERIT, 0);
 
@@ -158,7 +158,7 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
         startup.hStdOutput = outWrite;
         startup.hStdError = errWrite;
 
-        // the child starts suspended so it joins the job before it can spawn anything outside it
+        // The child starts suspended so it joins the job before it can spawn anything outside it.
         const BOOL started = CreateProcessW(nullptr, mutableCommand.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, nullptr, &startup, &process);
         if (!started)
         {
@@ -170,7 +170,7 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
             throw std::runtime_error("[ProcessRunner] The process could not be started.");
         }
 
-        // a host that already runs this process inside a job can refuse the assignment, and terminating an empty job would kill nothing, so the handle is dropped and the child is killed directly instead
+        // A host that already runs this process inside a job can refuse the assignment, and terminating an empty job would kill nothing, so the handle is dropped and the child is killed directly instead.
         if (job != nullptr && !AssignProcessToJobObject(job, process.hProcess))
         {
             WindowsProcessHelpers::closeHandle(job);
@@ -178,14 +178,14 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
 
         ResumeThread(process.hThread);
 
-        // close the parent copies of the write ends inside the lock so the reads terminate and no later spawn inherits them
+        // Close the parent copies of the write ends inside the lock so the reads terminate and no later spawn inherits them.
         WindowsProcessHelpers::closeHandle(outWrite);
         WindowsProcessHelpers::closeHandle(errWrite);
     }
 
     ProcessResult result;
 
-    // a synchronous ReadFile cannot be given a deadline, so the deadline is enforced on the child itself and the drains end when its pipes close
+    // A synchronous ReadFile cannot be given a deadline, so the deadline is enforced on the child itself and the drains end when its pipes close.
     std::atomic<bool> timedOut{false};
     std::thread watchdog;
     if (timeoutMs > 0)
@@ -202,19 +202,19 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
         // clang-format on
     }
 
-    // drain stderr on a helper thread so a child that fills one pipe buffer while writing the other never deadlocks the parent
+    // Drain stderr on a helper thread so a child that fills one pipe buffer while writing the other never deadlocks the parent.
     std::string errData;
     std::atomic<std::size_t> captured{0};
     // clang-format off
     std::thread errReader([&errData, errRead, &captured]
     {
-        // an escaping exception in a thread body would terminate the process, so a failed capture yields no stderr instead
+        // An escaping exception in a thread body would terminate the process, so a failed capture yields no stderr instead.
         try { errData = WindowsProcessHelpers::drainPipe(errRead, captured); }
         catch (...) {}
     });
     // clang-format on
 
-    // guard the main drain too so the reader thread is always joined even if the capture throws
+    // Guard the main drain too so the reader thread is always joined even if the capture throws.
     try
     {
         result.stdoutData = WindowsProcessHelpers::drainPipe(outRead, captured);
@@ -235,7 +235,7 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
     WindowsProcessHelpers::closeHandle(outRead);
     WindowsProcessHelpers::closeHandle(errRead);
 
-    // a child that overran the output cap is terminated so it cannot linger blocked on a full pipe
+    // A child that overran the output cap is terminated so it cannot linger blocked on a full pipe.
     if (captured.load() >= kMaxCaptureBytes)
     {
         WindowsProcessHelpers::killTree(job, process.hProcess);
@@ -258,7 +258,7 @@ std::optional<std::string> ProcessRunner::getenv(const std::string& name)
 {
     const std::wstring wideName = WindowsProcessHelpers::toWide(name);
 
-    // retry until the buffer fits since another thread can enlarge the variable between the size probe and the read
+    // Retry until the buffer fits since another thread can enlarge the variable between the size probe and the read.
     for (;;)
     {
         const DWORD needed = GetEnvironmentVariableW(wideName.c_str(), nullptr, 0);
@@ -296,7 +296,7 @@ std::vector<std::pair<std::string, std::string>> ProcessRunner::environment()
         const std::wstring entry = cursor;
         cursor += entry.size() + 1;
 
-        // skips the drive pseudo-variables that have no usable name
+        // Skips the drive pseudo-variables that have no usable name.
         const std::size_t equals = entry.find(L'=');
         if (equals == std::wstring::npos || equals == 0)
         {

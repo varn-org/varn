@@ -122,7 +122,7 @@ struct EventLoop::Poller
             return;
         }
 
-        // mark the state retiring so it outlives this call until libuv frees the handle in its close callback
+        // Mark the state retiring so it outlives this call until libuv frees the handle in its close callback.
         state->retiring = true;
         entries.erase(state->socket);
         uv_poll_stop(&state->handle);
@@ -139,7 +139,7 @@ struct EventLoop::Poller
         {
             if (!state->readers.empty())
             {
-                // pop the handler before invoking it so a close triggered inside the handler cannot rerun it
+                // Pop the handler before invoking it so a close triggered inside the handler cannot rerun it.
                 IoHandler handler = std::move(state->readers.front());
                 state->readers.pop_front();
                 bool done = true;
@@ -221,7 +221,7 @@ struct EventLoop::Poller
         std::deque<IoHandler> readers = std::move(state->readers);
         std::deque<IoHandler> writers = std::move(state->writers);
 
-        // close the fd so each pending handler's next i/o call fails, then retire the handle and run them so promises reject
+        // Close the fd so each pending handler's next i/o call fails, then retire the handle and run them so promises reject.
         try
         {
             state->socket.impl()->close();
@@ -256,7 +256,7 @@ struct EventLoop::Poller
 
     void wakeAsync()
     {
-        // serialize the wakeup with clear so a cross-thread send never races the handle being closed
+        // Serialize the wakeup with clear so a cross-thread send never races the handle being closed.
         std::lock_guard<std::mutex> lock(commandMutex);
         if (!closed)
         {
@@ -304,7 +304,7 @@ struct EventLoop::Poller
     void clear()
     {
         {
-            // mark closed under the same mutex the wakeups use so no cross-thread send can target the async handle after this
+            // Mark closed under the same mutex the wakeups use so no cross-thread send can target the async handle after this.
             std::lock_guard<std::mutex> lock(commandMutex);
             if (closed)
             {
@@ -334,7 +334,7 @@ struct EventLoop::Poller
 
         uv_close(reinterpret_cast<uv_handle_t*>(&async), nullptr);
         uv_close(reinterpret_cast<uv_handle_t*>(&timer), nullptr);
-        // run the loop until every close callback has fired so the handles are freed before the loop is closed
+        // Run the loop until every close callback has fired so the handles are freed before the loop is closed.
         uv_run(&loop, UV_RUN_DEFAULT);
         uv_loop_close(&loop);
     }
@@ -377,7 +377,7 @@ bool EventLoop::onLoopThread() const
 void EventLoop::wakeFromAnotherThread()
 {
 #if !defined(__EMSCRIPTEN__)
-    // interrupt the wait only for a cross-thread post since the loop re-checks its job queue before every poll
+    // Interrupt the wait only for a cross-thread post since the loop re-checks its job queue before every poll.
     if (poller && !onLoopThread())
     {
         poller->wakeAsync();
@@ -394,7 +394,7 @@ void EventLoop::post(Job job)
         // clang-format off
         jobs.push([ledger = ledger, j = std::move(job)]() mutable
         {
-            // release the ledger entry even if the job throws so the loop still drains
+            // Release the ledger entry even if the job throws so the loop still drains.
             try
             {
                 j();
@@ -409,7 +409,7 @@ void EventLoop::post(Job job)
     }
     catch (...)
     {
-        // the job never entered the queue, so release the entry it will never run to balance
+        // The job never entered the queue, so release the entry it will never run to balance.
         ledger->leave();
         throw;
     }
@@ -419,7 +419,7 @@ void EventLoop::post(Job job)
 
 void EventLoop::postDelayed(long long delayMs, Job job)
 {
-    // schedule a timer that fires on the loop thread after the delay so it never occupies a worker thread while it waits
+    // Schedule a timer that fires on the loop thread after the delay so it never occupies a worker thread while it waits.
     ledger->enter();
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(delayMs);
     try
@@ -428,7 +428,7 @@ void EventLoop::postDelayed(long long delayMs, Job job)
         // clang-format off
         timers.emplace(deadline, [ledger = ledger, j = std::move(job)]() mutable
         {
-            // release the ledger entry even if the job throws so the loop still drains
+            // Release the ledger entry even if the job throws so the loop still drains.
             try
             {
                 j();
@@ -443,7 +443,7 @@ void EventLoop::postDelayed(long long delayMs, Job job)
     }
     catch (...)
     {
-        // the timer never entered the queue, so release the entry it will never run to balance
+        // The timer never entered the queue, so release the entry it will never run to balance.
         ledger->leave();
         throw;
     }
@@ -504,7 +504,7 @@ void EventLoop::shutdownIo()
 
 #endif
 
-// runs every job that is ready and every timer that is due, any of which may post more work or stop the loop
+// Runs every job that is ready and every timer that is due, any of which may post more work or stop the loop.
 void EventLoop::drainReady()
 {
     for (;;)
@@ -543,7 +543,7 @@ void EventLoop::drainReady()
 void EventLoop::run()
 {
 #if defined(__EMSCRIPTEN__)
-    // wasm drives the loop by pumping drainPostedJobs from the host main loop so run is never entered there
+    // Wasm drives the loop by pumping drainPostedJobs from the host main loop so run is never entered there.
     return;
 #else
     running.store(true, std::memory_order_release);
@@ -558,7 +558,7 @@ void EventLoop::run()
             break;
         }
 
-        // apply socket operations queued from other threads before deciding how long to wait
+        // Apply socket operations queued from other threads before deciding how long to wait.
         poller->drainCommands();
 
         long long timeoutMs = 1000;
@@ -585,12 +585,12 @@ void EventLoop::run()
                 const auto next = timers.begin()->first;
                 const long long ms =
                     next <= now ? 0 : std::chrono::duration_cast<std::chrono::milliseconds>(next - now).count();
-                // cap the wait so a missed wakeup self-heals within a tick
+                // Cap the wait so a missed wakeup self-heals within a tick.
                 timeoutMs = std::min<long long>(ms, 1000);
             }
         }
 
-        // bound the libuv wait by the next timer deadline, though socket readiness or a cross-thread wakeup returns it sooner
+        // Bound the libuv wait by the next timer deadline, though socket readiness or a cross-thread wakeup returns it sooner.
         uv_timer_start(&poller->timer, &EventLoopHelpers::boundingTimerNoop, static_cast<std::uint64_t>(timeoutMs), 0);
         uv_run(&poller->loop, UV_RUN_ONCE);
         uv_timer_stop(&poller->timer);
@@ -598,12 +598,12 @@ void EventLoop::run()
 #endif
 }
 
-// advances the loop once without ever blocking, so a host that owns its own run loop drives the runtime from it
+// Advances the loop once without ever blocking, so a host that owns its own run loop drives the runtime from it.
 bool EventLoop::poll()
 {
-    // an entry that finished asks the loop to stop, which under this model ends that entry rather than the runtime
+    // An entry that finished asks the loop to stop, which under this model ends that entry rather than the runtime.
     running.store(true, std::memory_order_release);
-    // the caller's thread is the loop thread for this tick, so work armed from Lua is applied directly rather than queued
+    // The caller's thread is the loop thread for this tick, so work armed from Lua is applied directly rather than queued.
     loopThread.store(std::this_thread::get_id(), std::memory_order_release);
 
     drainReady();
@@ -619,7 +619,7 @@ bool EventLoop::poll()
     return pending();
 }
 
-// reports whether anything could still make progress, which is what tells a host whether to keep pumping
+// Reports whether anything could still make progress, which is what tells a host whether to keep pumping.
 bool EventLoop::pending() const
 {
     std::lock_guard<std::mutex> lock(mutex);
@@ -648,7 +648,7 @@ void EventLoop::stop()
 
 void EventLoop::clearPendingJobs()
 {
-    // drop queued jobs and timers without invoking them and release their ledger entries outside the lock so leave's notify path stays unlocked
+    // Drop queued jobs and timers without invoking them and release their ledger entries outside the lock so leave's notify path stays unlocked.
     std::queue<Job> drainedJobs;
     std::multimap<std::chrono::steady_clock::time_point, Job> drainedTimers;
     {
@@ -664,7 +664,7 @@ void EventLoop::clearPendingJobs()
     }
 }
 
-// the count shares the mutex the exit decision is taken under, so a retain from another thread is never read late
+// The count shares the mutex the exit decision is taken under, so a retain from another thread is never read late.
 void EventLoop::retain()
 {
     {
@@ -675,7 +675,7 @@ void EventLoop::retain()
     wake();
 }
 
-// releasing what was never retained would drive the count negative and leave the loop unable to ever exit
+// Releasing what was never retained would drive the count negative and leave the loop unable to ever exit.
 bool EventLoop::release()
 {
     {
@@ -716,7 +716,7 @@ bool EventLoop::hasPendingJobs() const
         return true;
     }
 
-    // count a timer whose deadline has arrived as pending for any caller that only pumps via drainPostedJobs
+    // Count a timer whose deadline has arrived as pending for any caller that only pumps via drainPostedJobs.
     return !timers.empty() && timers.begin()->first <= std::chrono::steady_clock::now();
 }
 
@@ -734,7 +734,7 @@ void EventLoop::drainPostedJobs()
         Job job;
         {
             std::lock_guard<std::mutex> lock(mutex);
-            // move any timer whose deadline has passed into the ready queue so a wasm pump that never calls run() still fires postDelayed jobs
+            // Move any timer whose deadline has passed into the ready queue so a wasm pump that never calls run() still fires postDelayed jobs.
             const auto now = std::chrono::steady_clock::now();
             while (!timers.empty() && timers.begin()->first <= now)
             {

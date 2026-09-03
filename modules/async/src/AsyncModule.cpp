@@ -15,7 +15,7 @@ namespace varn::async
 
 using varn::runtime::Runtime;
 
-// lua prelude attaching promise combinators on top of sleep/spawn/await/promise
+// Lua prelude attaching promise combinators on top of sleep/spawn/await/promise.
 static const char* const kCombinatorPrelude = R"lua(
 local async = ...
 
@@ -268,7 +268,7 @@ int AsyncModule::luaSleep(lua_State* L)
     });
     // clang-format on
 #else
-    // schedules the resolve on the loop timer
+    // Schedules the resolve on the loop timer.
     rt.mainLoop().postDelayed(ms, [promise]
                               { promise->resolve("ok"); });
 #endif
@@ -297,7 +297,7 @@ int AsyncModule::entryBody(lua_State* L)
 {
     const lua_KContext ctx = lua_toboolean(L, lua_upvalueindex(2)) ? 1 : 0;
 
-    // runs the user function under a protected call that survives await yields
+    // Runs the user function under a protected call that survives await yields.
     lua_pushvalue(L, lua_upvalueindex(1));
     const int status = lua_pcallk(L, 0, 0, 0, ctx, &AsyncModule::entryContinuation);
     return entryContinuation(L, status, ctx);
@@ -329,7 +329,7 @@ int AsyncModule::startEntry(lua_State* L, bool stopLoopOnSuccess)
         return luaL_error(L, "%s", message.c_str());
     }
 
-    // releases the thread ref held during startup
+    // Releases the thread ref held during startup.
     luaL_unref(L, LUA_REGISTRYINDEX, threadRef);
     return 0;
 }
@@ -339,7 +339,7 @@ int AsyncModule::promiseContinuation(lua_State* L, int status, lua_KContext ctx)
     (void)ctx;
     auto& rt = luaRuntime(L);
 
-    // reads the promise userdata from the coroutine upvalue
+    // Reads the promise userdata from the coroutine upvalue.
     lua_pushvalue(L, lua_upvalueindex(2));
     Promise* promise = Promise::check(L, -1);
     lua_pop(L, 1);
@@ -351,7 +351,7 @@ int AsyncModule::promiseContinuation(lua_State* L, int status, lua_KContext ctx)
         return 0;
     }
 
-    // captures the function result in the registry and unrefs it when the promise is gone
+    // Captures the function result in the registry and unrefs it when the promise is gone.
     lua_pushvalue(L, -1);
     const int valueRef = luaL_ref(L, LUA_REGISTRYINDEX);
     Runtime* runtime = &rt;
@@ -376,7 +376,7 @@ int AsyncModule::promiseContinuation(lua_State* L, int status, lua_KContext ctx)
 
 int AsyncModule::promiseBody(lua_State* L)
 {
-    // runs the user function under a protected call that survives await yields
+    // Runs the user function under a protected call that survives await yields.
     lua_pushvalue(L, lua_upvalueindex(1));
     const int status = lua_pcallk(L, 0, 1, 0, 0, &AsyncModule::promiseContinuation);
     return promiseContinuation(L, status, 0);
@@ -410,7 +410,7 @@ int AsyncModule::luaPromise(lua_State* L)
         return luaL_error(L, "%s", message.c_str());
     }
 
-    // releases the thread ref held during startup
+    // Releases the thread ref held during startup.
     luaL_unref(L, LUA_REGISTRYINDEX, threadRef);
 
     Promise::push(L, promise);
@@ -438,7 +438,7 @@ int AsyncModule::luaResolverGc(lua_State* L)
 {
     auto* guard = static_cast<ResolverGuardUserdata*>(luaL_checkudata(L, 1, kResolverGuardMeta));
 
-    // the resolver closure that held this guard was collected without resolving, so break the promise to resume and release its awaiters
+    // The resolver closure that held this guard was collected without resolving, so break the promise to resume and release its awaiters.
     if (guard->promise)
     {
         guard->promise->breakIfPending();
@@ -467,10 +467,10 @@ int AsyncModule::luaDeferred(lua_State* L)
     auto& rt = luaRuntime(L);
     auto promise = std::make_shared<Promise>(rt);
 
-    // the awaitable is returned alongside a one-shot resolve function
+    // The awaitable is returned alongside a one-shot resolve function.
     Promise::push(L, promise);
 
-    // a finalizable guard rides along as an upvalue of the resolve closure so dropping the resolver breaks a still-pending promise
+    // A finalizable guard rides along as an upvalue of the resolve closure so dropping the resolver breaks a still-pending promise.
     void* memory = lua_newuserdatauv(L, sizeof(ResolverGuardUserdata), 0);
     new (memory) ResolverGuardUserdata{promise};
     luaL_getmetatable(L, kResolverGuardMeta);
@@ -480,7 +480,7 @@ int AsyncModule::luaDeferred(lua_State* L)
     lua_pushvalue(L, -2);
     lua_pushcclosure(L, &AsyncModule::luaResolveDeferred, 2);
 
-    // drop the bare guard now that the closure owns it, leaving the awaitable and the resolve function on the stack
+    // Drop the bare guard now that the closure owns it, leaving the awaitable and the resolve function on the stack.
     lua_remove(L, -2);
     return 2;
 }
@@ -529,7 +529,7 @@ void AsyncModule::installCombinators(lua_State* L)
         luaL_error(L, "[AsyncModule] The combinator prelude failed to compile: %s", message ? message : "");
     }
 
-    // passes the module table on top of the stack to the prelude as its single argument
+    // Passes the module table on top of the stack to the prelude as its single argument.
     lua_pushvalue(L, -2);
     if (lua_pcall(L, 1, 0, 0) != LUA_OK)
     {

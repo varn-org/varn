@@ -65,7 +65,7 @@ std::string HttpUrl::encode(std::string_view input)
             continue;
         }
 
-        // anything outside the rfc 3986 unreserved set becomes a percent-escape so it survives in a url
+        // Anything outside the rfc 3986 unreserved set becomes a percent-escape so it survives in a url.
         out += '%';
         out += hex[c >> 4];
         out += hex[c & 0x0F];

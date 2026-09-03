@@ -68,7 +68,7 @@ void Log::addFileSink(std::string_view path, bool rotating)
     SpdlogBridge::ensureLogger();
     const std::string file(path);
 
-    // rotating keeps five files of five megabytes while basic appends to one file
+    // Rotating keeps five files of five megabytes while basic appends to one file.
     std::shared_ptr<spdlog::sinks::sink> sink;
     if (rotating)
     {
@@ -79,7 +79,7 @@ void Log::addFileSink(std::string_view path, bool rotating)
         sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(file);
     }
 
-    // serialize the read-modify-write so two concurrent toFile calls compose their sinks instead of one overwriting the other
+    // Serialize the read-modify-write so two concurrent toFile calls compose their sinks instead of one overwriting the other.
     static std::mutex sinkMutex;
     std::lock_guard<std::mutex> lock(sinkMutex);
 
@@ -89,7 +89,7 @@ void Log::addFileSink(std::string_view path, bool rotating)
 
     auto logger = std::make_shared<spdlog::logger>("varn", sinks.begin(), sinks.end());
     logger->set_level(current->level());
-    // flush each record so readers see it immediately
+    // Flush each record so readers see it immediately.
     logger->flush_on(spdlog::level::trace);
     spdlog::set_default_logger(std::move(logger));
 }

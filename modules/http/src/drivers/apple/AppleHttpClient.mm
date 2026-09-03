@@ -6,9 +6,9 @@
 #include <stdexcept>
 #include <string>
 
-// the platform url loading system, so an app steers this transport through its own Info.plist:
-// app transport security, exception domains, the minimum tls version and certificate transparency all apply here,
-// and the trust store, system proxy and http/2 come from the os rather than from a bundle shipped with the engine
+// The platform url loading system, so an app steers this transport through its own Info.plist.
+// App transport security, exception domains, the minimum tls version and certificate transparency all apply here.
+// The trust store, system proxy and http/2 come from the os rather than from a bundle shipped with the engine.
 
 namespace
 {
@@ -68,8 +68,7 @@ public:
         return request;
     }
 
-    // the url loading system decodes a compressed body before handing it over, so the headers that described the
-    // encoded form would contradict what the caller receives and are dropped rather than passed on as they were
+    // The url loading system decodes a compressed body before handing it over, so the headers describing the encoded form would contradict what the caller receives and are dropped.
     static bool describesEncodedBody(const std::string& name)
     {
         std::string lowered;
@@ -100,7 +99,7 @@ public:
 
 } // namespace
 
-// one delegate drives both the buffered and the streaming call, since they differ only in what they do with a chunk
+// One delegate drives both the buffered and the streaming call, since they differ only in what they do with a chunk.
 @interface VarnHttpDelegate : NSObject <NSURLSessionDataDelegate>
 @property(nonatomic, assign) BOOL verifyTls;
 @property(nonatomic, assign) size_t maxResponseBytes;
@@ -118,7 +117,7 @@ public:
 
 @implementation VarnHttpDelegate
 
-// an untrusted certificate is accepted only when the caller opted out of verification for a development server
+// An untrusted certificate is accepted only when the caller opted out of verification for a development server.
 - (void)URLSession:(NSURLSession*)session
     didReceiveChallenge:(NSURLAuthenticationChallenge*)challenge
       completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential*))completionHandler
@@ -134,7 +133,7 @@ public:
     completionHandler(NSURLSessionAuthChallengeUseCredential, credential);
 }
 
-// the url loading system follows a redirect on its own, while this client hands the 3xx to the caller like every other transport does
+// The url loading system follows a redirect on its own, while this client hands the 3xx to the caller like every other transport does.
 - (void)URLSession:(NSURLSession*)session
                           task:(NSURLSessionTask*)task
     willPerformHTTPRedirection:(NSHTTPURLResponse*)response
@@ -164,7 +163,7 @@ public:
     completionHandler(NSURLSessionResponseAllow);
 }
 
-// a handler is caller code, and letting it unwind through the url loading system's queue would terminate the process
+// A handler is caller code, and letting it unwind through the url loading system's queue would terminate the process.
 - (BOOL)runHandler:(void (^)())work
 {
     try
@@ -184,7 +183,7 @@ public:
     return NO;
 }
 
-// the cap is enforced here rather than after the fact, so an endless producer cannot exhaust memory
+// The cap is enforced here rather than after the fact, so an endless producer cannot exhaust memory.
 - (void)URLSession:(NSURLSession*)session dataTask:(NSURLSessionDataTask*)dataTask didReceiveData:(NSData*)data
 {
     self.receivedBytes += data.length;
@@ -227,7 +226,7 @@ namespace
 class AppleHttpRunner
 {
 public:
-    // the engine calls this on a pool thread and expects it to return finished, so the async session is awaited here
+    // The engine calls this on a pool thread and expects it to return finished, so the async session is awaited here.
     static void run(
         const std::string& method,
         const std::string& url,
@@ -255,7 +254,7 @@ public:
             configuration.timeoutIntervalForRequest = static_cast<NSTimeInterval>(options.timeoutSeconds);
             configuration.HTTPShouldSetCookies = NO;
 
-            // a private queue keeps the callbacks off the main thread, which this call may be blocking
+            // A private queue keeps the callbacks off the main thread, which this call may be blocking.
             NSOperationQueue* queue = [[NSOperationQueue alloc] init];
             queue.maxConcurrentOperationCount = 1;
 
@@ -265,7 +264,7 @@ public:
             dispatch_semaphore_wait(delegate.done, DISPATCH_TIME_FOREVER);
             [session finishTasksAndInvalidate];
 
-            // the cancellation a handler or the cap triggered would otherwise be reported as a plain transport error
+            // The cancellation a handler or the cap triggered would otherwise be reported as a plain transport error.
             if (delegate.handlerFailure != nil)
             {
                 throw std::runtime_error(AppleHttpHelpers::toStdString(delegate.handlerFailure));

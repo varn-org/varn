@@ -39,7 +39,7 @@ public:
             return;
         }
 
-        // closes the fd directly when the loop is stopped at shutdown
+        // Closes the fd directly when the loop is stopped at shutdown.
         try
         {
             socket.impl()->close();
@@ -68,7 +68,7 @@ public:
             return;
         }
 
-        // a tls socket cannot be driven by the loop readiness poll, since on windows the schannel i/o races the uv_poll re-arm and drops events, so read blocking on the io pool and settle back on the loop
+        // A tls socket cannot be driven by the loop readiness poll, since on windows the schannel i/o races the uv_poll re-arm and drops events, so read blocking on the io pool and settle back on the loop.
         if (secure)
         {
             receiveSecure(maxBytes, std::move(callback));
@@ -88,7 +88,7 @@ public:
 
         auto self = shared_from_this();
 
-        // secure writes go blocking on the io pool for the same reason as reads, keeping schannel off the loop readiness poll
+        // Secure writes go blocking on the io pool for the same reason as reads, keeping schannel off the loop readiness poll.
         if (secure)
         {
             sendSecure(std::move(data), std::move(callback));
@@ -137,7 +137,7 @@ public:
     {
         closed = true;
 
-        // a secure connection drives blocking i/o on the pool, so shut the transport down to unblock any in-flight syscall without freeing the fd, which raii then closes once the last pool task drops this connection
+        // A secure connection drives blocking i/o on the pool, so shut the transport down to unblock any in-flight syscall without freeing the fd, which raii then closes once the last pool task drops this connection.
         if (secure)
         {
             const auto fd = socket.impl()->sockfd();
@@ -158,25 +158,25 @@ public:
 
     void startTlsAsync(varn::runtime::Runtime& runtime, std::string host, bool verify, SendCallback callback) override;
 
-    // swaps the plaintext transport for the handshaked secure socket so later reads and writes run blocking over tls
+    // Swaps the plaintext transport for the handshaked secure socket so later reads and writes run blocking over tls.
     void adoptSecure(const Poco::Net::StreamSocket& upgraded, varn::runtime::Runtime& rt)
     {
         socket = upgraded;
         enterSecure(rt);
     }
 
-    // marks a connection that was already established over tls so its i/o runs blocking on the pool
+    // Marks a connection that was already established over tls so its i/o runs blocking on the pool.
     void markSecure(varn::runtime::Runtime& rt) { enterSecure(rt); }
 
 public:
-    // runs the next queued secure operation once the current one settles, called on the loop thread
+    // Runs the next queued secure operation once the current one settles, called on the loop thread.
     void completeSecure()
     {
         secureBusy = false;
         pumpSecure();
     }
 
-    // enqueues a secure operation so tls reads, writes and the handshake never touch the same ssl object concurrently on the io pool
+    // Enqueues a secure operation so tls reads, writes and the handshake never touch the same ssl object concurrently on the io pool.
     void enqueueSecure(std::function<void()> op)
     {
         secureQueue.push_back(std::move(op));
@@ -204,7 +204,7 @@ private:
         socket.setBlocking(true);
     }
 
-    // reads one chunk blocking on the io pool and settles the callback back on the loop thread
+    // Reads one chunk blocking on the io pool and settles the callback back on the loop thread.
     void receiveSecure(int maxBytes, ReceiveCallback callback)
     {
         auto self = shared_from_this();
@@ -242,7 +242,7 @@ private:
         // clang-format on
     }
 
-    // writes the whole payload blocking on the io pool and settles the callback back on the loop thread
+    // Writes the whole payload blocking on the io pool and settles the callback back on the loop thread.
     void sendSecure(std::string data, SendCallback callback)
     {
         auto self = shared_from_this();
@@ -287,7 +287,7 @@ private:
         // clang-format on
     }
 
-    // performs a single read and returns whether the callback was invoked, false meaning the read would block
+    // Performs a single read and returns whether the callback was invoked, false meaning the read would block.
     bool readOnce(int maxBytes, const ReceiveCallback& callback)
     {
         try

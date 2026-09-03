@@ -32,7 +32,7 @@ namespace
 class TlsServerHelpers
 {
 public:
-    // bundle the pem certificate and private key into an in-memory pkcs12 with an empty passphrase, the only shape schannel imports
+    // Bundle the pem certificate and private key into an in-memory pkcs12 with an empty passphrase, the only shape schannel imports.
     static std::vector<char> buildPkcs12FromPem(const std::string& keyFile, const std::string& certFile)
     {
         std::unique_ptr<BIO, decltype(&BIO_free)> certBio(BIO_new_file(certFile.c_str(), "rb"), BIO_free);
@@ -59,7 +59,7 @@ public:
             throw std::runtime_error("[TlsServerContext] The TLS private key is not valid PEM.");
         }
 
-        // leave the certificate bag unencrypted since it is public, which also avoids the legacy cipher openssl 3 no longer enables by default
+        // Leave the certificate bag unencrypted since it is public, which also avoids the legacy cipher openssl 3 no longer enables by default.
         std::unique_ptr<PKCS12, decltype(&PKCS12_free)> bundle(
             PKCS12_create("", "varn", privateKey.get(), certificate.get(), nullptr, 0, -1, 0, 0, 0), PKCS12_free);
         if (!bundle)
@@ -79,7 +79,7 @@ public:
     }
 };
 
-// import the key material straight from memory so the private key never touches disk, unlike the file path schannel documents
+// Import the key material straight from memory so the private key never touches disk, unlike the file path schannel documents.
 class MemoryPkcs12Context : public Poco::Net::Context
 {
 public:
@@ -100,11 +100,11 @@ Poco::Net::Context::Ptr TlsServerContext::create(const HttpServerOptions& opts)
     static Poco::Crypto::OpenSSLInitializer openSslInitializer;
 
 #if defined(_WIN32)
-    // schannel imports one pkcs12 blob, so bundle the same pem key and certificate in memory to keep the lua config identical across desktop os
+    // Schannel imports one pkcs12 blob, so bundle the same pem key and certificate in memory to keep the lua config identical across desktop os.
     const std::vector<char> bundle = TlsServerHelpers::buildPkcs12FromPem(opts.keyFile, opts.certFile);
     Poco::Net::Context::Ptr context = new MemoryPkcs12Context(bundle);
 #else
-    // a modern suite of forward-secret aead ciphers, leaving tls 1.3 to negotiate its own
+    // A modern suite of forward-secret aead ciphers, leaving tls 1.3 to negotiate its own.
     constexpr const char* kCipherList =
         "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
         "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:"
@@ -122,14 +122,14 @@ Poco::Net::Context::Ptr TlsServerContext::create(const HttpServerOptions& opts)
         kCipherList);
 #endif
 
-    // refuse the legacy protocols that modern deployments must not negotiate
+    // Refuse the legacy protocols that modern deployments must not negotiate.
     context->requireMinimumProtocol(Poco::Net::Context::PROTO_TLSV1_2);
     return context;
 }
 
 void TlsServerContext::initializeSslManager(Poco::Net::Context::Ptr context)
 {
-    // the ssl manager is a process-global singleton whose default handlers are initialized once so a second server start does not clobber the first server's configuration, while each server still binds its own context to its socket so the global default only supplies the passphrase and invalid-cert handlers
+    // The ssl manager is a process-global singleton whose default handlers are initialized once so a second server start does not clobber the first server's configuration, while each server still binds its own context to its socket so the global default only supplies the passphrase and invalid-cert handlers.
     static std::once_flag onceFlag;
     // clang-format off
     std::call_once(onceFlag, [&context]

@@ -17,14 +17,13 @@ using varn::lua::LuaEngine;
 
 namespace
 {
-// size a dedicated pool for blocking i/o (http client, filesystem) so it never starves the cpu task pool
+// Size a dedicated pool for blocking i/o (http client, filesystem) so it never starves the cpu task pool.
 constexpr std::size_t kIoThreads = 32;
 
 class RuntimeHelpers
 {
 public:
-    // bridges a Lua call to a host function, marshalling the single argument and the result through json
-    // host.on(name, fn) keeps the function in the registry so the host can reach it later from another thread
+    // Keeps the subscribed function in the registry so the host can reach it later from another thread.
     static int hostOnTrampoline(lua_State* L)
     {
         auto* runtime = static_cast<Runtime*>(lua_touserdata(L, lua_upvalueindex(1)));
@@ -62,12 +61,12 @@ Runtime::Runtime(std::vector<std::string> args, std::size_t scriptArgIndex)
     , pool(std::thread::hardware_concurrency(), workLedger)
     , engine(std::make_unique<LuaEngine>(*this))
 {
-    // install the notify hook before any worker spins up so none can observe it unset
+    // Install the notify hook before any worker spins up so none can observe it unset.
     workLedger->setNotify([this]
                           { loop.wake(); });
     pool.start();
 
-    // the bridge exists from the start, so a script can subscribe with host.on even when the host registers no function
+    // The bridge exists from the start, so a script can subscribe with host.on even when the host registers no function.
     ensureHostTable(engine->state());
     lua_pop(engine->state(), 1);
 }
@@ -77,7 +76,7 @@ Runtime::~Runtime()
     stop();
 
 #if !defined(__EMSCRIPTEN__)
-    // a script that fails before the loop is entered leaves its socket watchers armed, and those handlers hold lua registry refs, so they are released here while the engine still owns the state rather than after it is closed
+    // A script that fails before the loop is entered leaves its socket watchers armed, and those handlers hold lua registry refs, so they are released here while the engine still owns the state rather than after it is closed.
     loop.shutdownIo();
 #endif
 }
@@ -94,7 +93,7 @@ int Runtime::runString(const std::string& source, const std::string& chunkName)
     return finishAfterUserChunk(engine->runString(source, chunkName));
 }
 
-// a runtime runs as many chunks as the host asks it to, so the outcome of the previous one decides nothing here
+// A runtime runs as many chunks as the host asks it to, so the outcome of the previous one decides nothing here.
 void Runtime::beginChunk()
 {
     unhandledError = false;
@@ -113,7 +112,7 @@ int Runtime::loadString(const std::string& source, const std::string& chunkName)
     return finishAfterLoad(engine->runString(source, chunkName));
 }
 
-// the chunk has run and whatever it left behind is now the host's to drive, so the loop is never entered here
+// The chunk has run and whatever it left behind is now the host's to drive, so the loop is never entered here.
 int Runtime::finishAfterLoad(int loadRunExitCode)
 {
     if (loadRunExitCode != 0)
@@ -132,7 +131,7 @@ bool Runtime::poll()
     }
 
 #if defined(__EMSCRIPTEN__)
-    // the browser has no threads, so a pool job only ever runs when the pump drains it here
+    // The browser has no threads, so a pool job only ever runs when the pump drains it here.
     bool progressed = false;
     do
     {
@@ -156,9 +155,10 @@ bool Runtime::poll()
         }
     } while (progressed);
 
-    // a fetch resumes through a js callback and a timer matures on a later tick, so either one still expects more work
+    const bool more = loop.poll();
+    // A fetch resumes through a js callback rather than through the queue, so it still expects a later tick.
     const bool fetchPending = varn::wasm::WasmAsyncHost::fetchInflight().load(std::memory_order_acquire) > 0;
-    return fetchPending || loop.hasPendingTimers() || loop.pending();
+    return more || fetchPending;
 #else
     return loop.poll();
 #endif
@@ -176,7 +176,7 @@ int Runtime::finishAfterUserChunk(int loadRunExitCode)
         return loadRunExitCode;
     }
 
-    // handle an async entry that already failed or completed synchronously before the loop starts
+    // Handle an async entry that already failed or completed synchronously before the loop starts.
     if (unhandledError)
     {
         return 1;
@@ -233,7 +233,7 @@ TaskPool& Runtime::taskPool()
 
 TaskPool& Runtime::ioPool()
 {
-    // the pool is created on first use but stop() can reach it from another thread, so publication is guarded
+    // The pool is created on first use but stop() can reach it from another thread, so publication is guarded.
     std::lock_guard<std::mutex> lock(ioWorkersMutex);
     if (!ioWorkers)
     {
@@ -263,7 +263,7 @@ void Runtime::registerHostFunction(const std::string& name, HostFunction fn)
     lua_pop(L, 1);
 }
 
-// the host table is the whole native bridge: host.<name> reaches native, host.on receives from it
+// The host table is the whole native bridge: host.<name> reaches native, host.on receives from it.
 void Runtime::ensureHostTable(lua_State* L)
 {
     lua_getglobal(L, "host");
@@ -290,7 +290,7 @@ void Runtime::addHostEventHandler(const std::string& name, int luaRef)
 
 void Runtime::emitHostEvent(const std::string& name, const std::string& jsonArgument)
 {
-    // the host calls this from its own thread, so delivery is posted and lua is only touched on the loop
+    // The host calls this from its own thread, so delivery is posted and lua is only touched on the loop.
     loop.post([this, name, jsonArgument]()
               {
         if (stopped())
@@ -298,7 +298,7 @@ void Runtime::emitHostEvent(const std::string& name, const std::string& jsonArgu
             return;
         }
 
-        // a handler may register another one, so the list is copied before any of them runs
+        // A handler may register another one, so the list is copied before any of them runs.
         std::vector<int> refs;
         {
             std::lock_guard<std::mutex> lock(handlersMutex);
@@ -357,7 +357,7 @@ void Runtime::stop()
         return;
     }
 
-    // snapshot and clear under the lock so a concurrent addServer on the loop thread never races the teardown
+    // Snapshot and clear under the lock so a concurrent addServer on the loop thread never races the teardown.
     std::vector<std::shared_ptr<varn::http::HttpServer>> pending;
     {
         std::lock_guard<std::mutex> lock(serversMutex);
@@ -374,7 +374,7 @@ void Runtime::stop()
 
     pool.stop();
 
-    // read the lazily created io pool under its mutex so a concurrent first use on the loop thread cannot be missed
+    // Read the lazily created io pool under its mutex so a concurrent first use on the loop thread cannot be missed.
     TaskPool* io = nullptr;
     {
         std::lock_guard<std::mutex> lock(ioWorkersMutex);
@@ -387,7 +387,7 @@ void Runtime::stop()
     }
 
     loop.stop();
-    // drop still-queued jobs to release their captured state such as lua registry refs while the lua_State is still alive
+    // Drop still-queued jobs to release their captured state such as lua registry refs while the lua_State is still alive.
     loop.clearPendingJobs();
 }
 

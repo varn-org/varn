@@ -25,7 +25,7 @@ long long runAndMeasure(varn_runtime* runtime, const char* source, const char* c
     return std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
 }
 
-// a host that loads a chunk and then runs another must see the loop drive both, not silently skip the second
+// A host that loads a chunk and then runs another must see the loop drive both, not silently skip the second.
 TEST(RuntimeLifetime, EveryChunkGetsTheEventLoop)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -46,7 +46,7 @@ TEST(RuntimeLifetime, EveryChunkGetsTheEventLoop)
     varn_runtime_free(rt);
 }
 
-// the exit code belongs to the chunk that produced it, so a failure must not decide the outcome of the next one
+// The exit code belongs to the chunk that produced it, so a failure must not decide the outcome of the next one.
 TEST(RuntimeLifetime, AFailedChunkDoesNotPoisonTheNext)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -59,7 +59,7 @@ TEST(RuntimeLifetime, AFailedChunkDoesNotPoisonTheNext)
     varn_runtime_free(rt);
 }
 
-// an entry that asks the loop to stop ends its own chunk, and the next chunk still gets a running loop
+// An entry that asks the loop to stop ends its own chunk, and the next chunk still gets a running loop.
 TEST(RuntimeLifetime, AnEntryThatStopsTheLoopDoesNotEndTheRuntime)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -75,7 +75,7 @@ TEST(RuntimeLifetime, AnEntryThatStopsTheLoopDoesNotEndTheRuntime)
     varn_runtime_free(rt);
 }
 
-// socket state is owned by the loop, so a second chunk that binds a server proves the io layer survived the first
+// Socket state is owned by the loop, so a second chunk that binds a server proves the io layer survived the first.
 TEST(RuntimeLifetime, SocketsStillWorkAfterAnEarlierChunkFinished)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -99,7 +99,7 @@ TEST(RuntimeLifetime, SocketsStillWorkAfterAnEarlierChunkFinished)
     varn_runtime_free(rt);
 }
 
-// a host retains to keep the loop waiting for its events, so a retain must never be lost to the exit decision
+// A host retains to keep the loop waiting for its events, so a retain must never be lost to the exit decision.
 TEST(RuntimeLifetime, ARetainHeldAcrossAChunkKeepsTheLoopRunning)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -131,7 +131,7 @@ TEST(RuntimeLifetime, ARetainHeldAcrossAChunkKeepsTheLoopRunning)
     varn_runtime_free(rt);
 }
 
-// releasing what was never retained would drive the count below zero and leave the loop unable to ever exit
+// Releasing what was never retained would drive the count below zero and leave the loop unable to ever exit.
 TEST(RuntimeLifetime, AnUnbalancedReleaseIsRefused)
 {
     varn_runtime* rt = varn_runtime_new();

@@ -93,19 +93,19 @@ std::string CryptoPrimitives::randomBytes(std::size_t count)
     }
 
 #if defined(_WIN32)
-    // draw from the system-preferred csprng so the portable driver is seeded correctly on windows
+    // Draw from the system-preferred csprng so the portable driver is seeded correctly on windows.
     if (BCryptGenRandom(nullptr, reinterpret_cast<PUCHAR>(out.data()), static_cast<ULONG>(count), BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0)
     {
         throw std::runtime_error("[CryptoPrimitives] The system random source failed.");
     }
 #elif defined(__APPLE__)
-    // arc4random_buf is the platform csprng and cannot fail
+    // The platform csprng arc4random_buf cannot fail.
     arc4random_buf(out.data(), count);
 #else
     std::size_t filled = 0;
     while (filled < count)
     {
-        // getentropy fills at most 256 bytes per call
+        // Getentropy fills at most 256 bytes per call.
         const std::size_t chunk = std::min<std::size_t>(256, count - filled);
         if (getentropy(out.data() + filled, chunk) != 0)
         {
@@ -146,7 +146,7 @@ std::string CryptoPrimitives::uuidV4()
     unsigned char bytes[16];
     std::memcpy(bytes, random.data(), sizeof(bytes));
 
-    // version 4 in the high nibble of byte 6 and the rfc 4122 variant in the high bits of byte 8
+    // Version 4 in the high nibble of byte 6 and the rfc 4122 variant in the high bits of byte 8.
     bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0F) | 0x40);
     bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3F) | 0x80);
 
@@ -159,7 +159,7 @@ std::string CryptoPrimitives::uuidV7()
 
     unsigned char bytes[16];
 
-    // the first 48 bits hold a big-endian unix millisecond timestamp so the ids sort by creation time
+    // The first 48 bits hold a big-endian unix millisecond timestamp so the ids sort by creation time.
     const std::uint64_t millis = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     bytes[0] = static_cast<unsigned char>((millis >> 40) & 0xFF);
     bytes[1] = static_cast<unsigned char>((millis >> 32) & 0xFF);
@@ -170,7 +170,7 @@ std::string CryptoPrimitives::uuidV7()
 
     std::memcpy(bytes + 6, random.data(), 10);
 
-    // version 7 in the high nibble of byte 6 and the rfc 4122 variant in the high bits of byte 8
+    // Version 7 in the high nibble of byte 6 and the rfc 4122 variant in the high bits of byte 8.
     bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0F) | 0x70);
     bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3F) | 0x80);
 

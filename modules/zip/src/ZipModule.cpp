@@ -64,7 +64,7 @@ void ZipModule::performExtract(const std::string& zipPath, const std::string& de
     fs::create_directories(destDir);
     const fs::path destRoot = fs::canonical(fs::absolute(destDir));
 
-    // bounds the entry count and total expansion against zip bombs
+    // Bounds the entry count and total expansion against zip bombs.
     constexpr zip_uint64_t kMaxEntries = 100000;
     constexpr std::uint64_t kMaxTotalBytes = 2ull * 1024 * 1024 * 1024;
 
@@ -92,7 +92,7 @@ void ZipModule::performExtract(const std::string& zipPath, const std::string& de
         const fs::path outFile = destRoot / nm;
         const fs::path parentDir = outFile.parent_path();
 
-        // confirms containment before creating directories so a symlink cannot redirect mkdir outside the root
+        // Confirms containment before creating directories so a symlink cannot redirect mkdir outside the root.
         const fs::path canonParent = fs::weakly_canonical(parentDir);
         if (!ZipPath::isSubpath(destRoot, canonParent))
         {
@@ -112,7 +112,7 @@ void ZipModule::performExtract(const std::string& zipPath, const std::string& de
             throw std::runtime_error("[ZipModule] An entry inside the archive could not be opened.");
         }
 
-        // refuses to follow a pre-existing symlink at the target name
+        // Refuses to follow a pre-existing symlink at the target name.
         if (fs::is_symlink(outFile))
         {
             throw std::runtime_error("[ZipModule] An entry target already exists as a symlink.");
@@ -154,7 +154,7 @@ void ZipModule::performExtract(const std::string& zipPath, const std::string& de
         }
     }
 
-    // release only after a clean close since a failed close leaves the handle for the deleter to discard
+    // Release only after a clean close since a failed close leaves the handle for the deleter to discard.
     if (zip_close(za.get()) != 0)
     {
         throw std::runtime_error("[ZipModule] The archive could not be closed after extraction.");

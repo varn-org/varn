@@ -42,7 +42,7 @@ bool HttpToken::base64UrlDecode(const std::string& input, std::string& out)
     }
     catch (const std::exception&)
     {
-        // reject any character outside the base64url alphabet so malformed segments cannot decode
+        // Reject any character outside the base64url alphabet so malformed segments cannot decode.
         out.clear();
         return false;
     }
@@ -116,7 +116,7 @@ bool HttpToken::audienceMatches(lua_State* L, int claimsIdx, const std::string& 
 
 bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::string& secret, const JwtVerifyOptions& opts, std::string& error)
 {
-    // refuse to verify without a configured secret so an empty key cannot be used to forge tokens
+    // Refuse to verify without a configured secret so an empty key cannot be used to forge tokens.
     if (secret.empty())
     {
         error = "missing secret";
@@ -134,7 +134,7 @@ bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::str
     const std::string signingInput = token.substr(0, second);
     const std::string signature = token.substr(second + 1);
 
-    // enforce the algorithm so a token with alg none or a different scheme cannot be accepted
+    // Enforce the algorithm so a token with alg none or a different scheme cannot be accepted.
     std::string header;
     if (!base64UrlDecode(token.substr(0, first), header))
     {
@@ -157,7 +157,7 @@ bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::str
     bool hasCrit = false;
     if (headerDecoded)
     {
-        // a header that decodes to a non-object cannot be indexed, so guard before reading alg
+        // A header that decodes to a non-object cannot be indexed, so guard before reading alg.
         if (lua_istable(L, -1))
         {
             lua_getfield(L, -1, "alg");
@@ -178,7 +178,7 @@ bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::str
         return false;
     }
 
-    // a token demanding a critical extension this verifier cannot process must be rejected
+    // A token demanding a critical extension this verifier cannot process must be rejected.
     if (hasCrit)
     {
         error = "unsupported crit";
@@ -226,7 +226,7 @@ bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::str
         return false;
     }
 
-    // a payload that decodes to a non-object cannot carry claims, so reject before indexing it
+    // A payload that decodes to a non-object cannot carry claims, so reject before indexing it.
     if (!lua_istable(L, -1))
     {
         lua_pop(L, 1);
@@ -234,7 +234,7 @@ bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::str
         return false;
     }
 
-    // a json array decodes to a table with a positive length, but claims must be a named object
+    // A json array decodes to a table with a positive length, but claims must be a named object.
     if (lua_rawlen(L, -1) > 0)
     {
         lua_pop(L, 1);
@@ -245,7 +245,7 @@ bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::str
     const double now = static_cast<double>(std::time(nullptr));
     const double leeway = static_cast<double>(opts.leewaySeconds);
 
-    // a present expiry must be numeric and must not be in the past beyond the allowed clock skew
+    // A present expiry must be numeric and must not be in the past beyond the allowed clock skew.
     lua_getfield(L, -1, "exp");
     const int expType = lua_type(L, -1);
     if (expType != LUA_TNIL)
@@ -267,7 +267,7 @@ bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::str
 
     lua_pop(L, 1);
 
-    // a present not-before must be numeric and must not be in the future beyond the allowed clock skew
+    // A present not-before must be numeric and must not be in the future beyond the allowed clock skew.
     lua_getfield(L, -1, "nbf");
     const int nbfType = lua_type(L, -1);
     if (nbfType != LUA_TNIL)
@@ -289,7 +289,7 @@ bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::str
 
     lua_pop(L, 1);
 
-    // when an audience is expected the claim must be present and contain it
+    // When an audience is expected the claim must be present and contain it.
     if (opts.hasAudience && !audienceMatches(L, lua_gettop(L), opts.audience))
     {
         lua_pop(L, 1);
@@ -297,7 +297,7 @@ bool HttpToken::verifyJwt(lua_State* L, const std::string& token, const std::str
         return false;
     }
 
-    // when an issuer is expected the claim must be present and match exactly
+    // When an issuer is expected the claim must be present and match exactly.
     if (opts.hasIssuer)
     {
         lua_getfield(L, -1, "iss");

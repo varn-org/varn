@@ -10,7 +10,7 @@
 namespace
 {
 
-// what the lua side handed back, kept where the c callback can reach it without capturing
+// What the lua side handed back, kept where the c callback can reach it without capturing.
 class Collected
 {
 public:
@@ -37,7 +37,7 @@ public:
 
 } // namespace
 
-// the host reaches lua from another thread while the loop runs, which is the direction a user interface needs
+// The host reaches lua from another thread while the loop runs, which is the direction a user interface needs.
 TEST(HostEvents, DeliversFromAnotherThread)
 {
     Collected::lines().clear();
@@ -47,7 +47,7 @@ TEST(HostEvents, DeliversFromAnotherThread)
     ASSERT_NE(runtime, nullptr);
     ASSERT_EQ(varn_runtime_register(runtime, "record", &Collected::record, nullptr), 0);
 
-    // the loop is held open so it waits for the events instead of exiting once the chunk returns
+    // The loop is held open so it waits for the events instead of exiting once the chunk returns.
     ASSERT_EQ(varn_runtime_retain(runtime), 0);
 
     std::thread emitter([runtime]
@@ -58,7 +58,7 @@ TEST(HostEvents, DeliversFromAnotherThread)
             varn_runtime_emit(runtime, "tap", "{\"index\":1}");
         }
 
-        // wait for lua to have seen all three before letting the loop finish
+        // Wait for lua to have seen all three before letting the loop finish.
         while (Collected::count().load(std::memory_order_acquire) < 3)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -84,7 +84,7 @@ TEST(HostEvents, DeliversFromAnotherThread)
     EXPECT_NE(Collected::lines().find("tap 3 index 1"), std::string::npos);
 }
 
-// an event nobody subscribed to is not an error, and one raised inside a handler does not take the loop down
+// An event nobody subscribed to is not an error, and one raised inside a handler does not take the loop down.
 TEST(HostEvents, SurvivesUnknownNamesAndFailingHandlers)
 {
     varn_runtime* runtime = varn_runtime_new();
@@ -111,7 +111,7 @@ TEST(HostEvents, SurvivesUnknownNamesAndFailingHandlers)
     varn_runtime_free(runtime);
 }
 
-// emitting after the runtime was told to stop must not reach the lua state it is tearing down
+// Emitting after the runtime was told to stop must not reach the lua state it is tearing down.
 TEST(HostEvents, IgnoresEmitAfterStop)
 {
     varn_runtime* runtime = varn_runtime_new();

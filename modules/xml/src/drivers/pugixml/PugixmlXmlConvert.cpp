@@ -33,7 +33,7 @@ void XmlConvert::pushElement(lua_State* L, const pugi::xml_node& node, int depth
         lua_setfield(L, -2, "attributes");
     }
 
-    // gather direct text and collect child elements into an ordered array
+    // Gather direct text and collect child elements into an ordered array.
     std::string text;
     int childCount = 0;
     lua_newtable(L);

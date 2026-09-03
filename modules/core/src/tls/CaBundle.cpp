@@ -18,10 +18,10 @@ namespace
 class CaBundleSearch
 {
 public:
-    // an explicit setting always wins, since a host that ships its own roots knows better than any guess
+    // An explicit setting always wins, since a host that ships its own roots knows better than any guess.
     static constexpr const char* kOverride = "SSL_CERT_FILE";
 
-    // openssl reads a bundle file or a directory of hashed certificates, so both forms belong here
+    // Openssl reads a bundle file or a directory of hashed certificates, so both forms belong here.
     static constexpr const char* kCandidates[] = {
         "/etc/ssl/cert.pem",
         "/etc/ssl/certs/ca-certificates.crt",
@@ -29,13 +29,13 @@ public:
         "/etc/ssl/ca-bundle.pem",
         "/opt/homebrew/etc/openssl@3/cert.pem",
         "/usr/local/etc/openssl@3/cert.pem",
-        // android keeps its roots as a directory rather than one file, and moved them under apex in newer releases
+        // Android keeps its roots as a directory rather than one file, and moved them under apex in newer releases.
         "/apex/com.android.conscrypt/cacerts",
         "/system/etc/security/cacerts",
     };
 
 #if defined(__APPLE__)
-    // an apple app has no readable trust store on disk, so a bundled cacert.pem is the conventional place to put one
+    // An apple app has no readable trust store on disk, so a bundled cacert.pem is the conventional place to put one.
     static std::string fromMainBundle()
     {
         CFBundleRef bundle = CFBundleGetMainBundle();

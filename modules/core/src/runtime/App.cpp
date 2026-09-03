@@ -48,7 +48,7 @@ public:
 
     static void resetChildSignals()
     {
-        // restore default signal handlers so a worker terminates on the parent's shutdown signal
+        // Restore default signal handlers so a worker terminates on the parent's shutdown signal.
         signal(SIGINT, SIG_DFL);
         signal(SIGTERM, SIG_DFL);
     }
@@ -66,7 +66,7 @@ class WinWorkerHelpers
 public:
     static BOOL WINAPI onWorkerConsoleEvent(DWORD)
     {
-        // any console control event asks the supervisor to stop restarting and tear the workers down
+        // Any console control event asks the supervisor to stop restarting and tear the workers down.
         InterlockedExchange(&gWinWorkerShutdown, 1);
         return TRUE;
     }
@@ -76,7 +76,7 @@ public:
         STARTUPINFOW startup{};
         startup.cb = static_cast<DWORD>(sizeof(startup));
 
-        // inherit the supervisor's standard streams so redirected stdout and stderr reach the workers like a posix fork does
+        // Inherit the supervisor's standard streams so redirected stdout and stderr reach the workers like a posix fork does.
         startup.dwFlags = STARTF_USESTDHANDLES;
         startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
         startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -104,7 +104,7 @@ public:
 
     static void clearWorkerChildMarker()
     {
-        // drop the recursion guard from the child environment so os.getenv never exposes the supervisor detail
+        // Drop the recursion guard from the child environment so os.getenv never exposes the supervisor detail.
         _putenv("VARN_WORKER_CHILD=");
         SetEnvironmentVariableW(L"VARN_WORKER_CHILD", nullptr);
     }
@@ -127,7 +127,7 @@ bool App::isHelpFlag(std::string_view flag)
     return flag == "-h" || flag == "--help";
 }
 
-// usage goes to stdout so it can be piped, unlike the diagnostics the logger writes
+// Usage goes to stdout so it can be piped, unlike the diagnostics the logger writes.
 void App::printUsage()
 {
     std::printf("varn %s\n\n", VARN_VERSION_STRING);
@@ -159,7 +159,7 @@ int App::superviseWorkers(int count, const std::function<int()>& runChild)
     workers.reserve(static_cast<std::size_t>(count));
     startedAt.reserve(static_cast<std::size_t>(count));
 
-    // install handlers without SA_RESTART before the first fork so a signal during startup cannot orphan workers, and waitpid returns EINTR on shutdown
+    // Install handlers without SA_RESTART before the first fork so a signal during startup cannot orphan workers, and waitpid returns EINTR on shutdown.
     struct sigaction action = {};
     action.sa_handler = PosixWorkerHelpers::onWorkerSignal;
     sigemptyset(&action.sa_mask);
@@ -186,13 +186,13 @@ int App::superviseWorkers(int count, const std::function<int()>& runChild)
         startedAt.push_back(std::chrono::steady_clock::now());
     }
 
-    // if not a single worker could be forked, run in this process rather than exiting having done nothing
+    // If not a single worker could be forked, run in this process rather than exiting having done nothing.
     if (workers.empty())
     {
         return runChild();
     }
 
-    // restart a worker that dies abnormally and stop on the first shutdown signal, leaving a clean exit alone
+    // Restart a worker that dies abnormally and stop on the first shutdown signal, leaving a clean exit alone.
     while (!gWorkerShutdown)
     {
         int status = 0;
@@ -220,7 +220,7 @@ int App::superviseWorkers(int count, const std::function<int()>& runChild)
 
         const std::size_t index = static_cast<std::size_t>(slot - workers.begin());
 
-        // a worker that finished cleanly is not resurrected, and the supervisor exits once none remain
+        // A worker that finished cleanly is not resurrected, and the supervisor exits once none remain.
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
         {
             workers.erase(slot);
@@ -233,7 +233,7 @@ int App::superviseWorkers(int count, const std::function<int()>& runChild)
             continue;
         }
 
-        // a worker that died almost immediately backs off before respawning so a crash loop cannot become a fork storm
+        // A worker that died almost immediately backs off before respawning so a crash loop cannot become a fork storm.
         const long long livedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startedAt[index]).count();
         if (livedMs < kWorkerMinLifetimeMs)
         {
@@ -284,7 +284,7 @@ int App::superviseWorkers(int count, const std::function<int()>& runChild)
 #if defined(_WIN32) && !defined(VARN_NO_FORK)
 int App::superviseWorkers(int count, const std::function<int()>& runChild)
 {
-    // windows has no fork, so each worker is a relaunch of this executable flagged so it runs the script instead of supervising again
+    // Windows has no fork, so each worker is a relaunch of this executable flagged so it runs the script instead of supervising again.
     SetConsoleCtrlHandler(&WinWorkerHelpers::onWorkerConsoleEvent, TRUE);
     SetEnvironmentVariableW(L"VARN_WORKER_CHILD", L"1");
 
@@ -304,14 +304,14 @@ int App::superviseWorkers(int count, const std::function<int()>& runChild)
         log::Log::error("App", "Failed to spawn a worker process.");
     }
 
-    // if not a single worker could be launched, fall back to serving in this process rather than exiting having done nothing
+    // If not a single worker could be launched, fall back to serving in this process rather than exiting having done nothing.
     if (workers.empty())
     {
         SetConsoleCtrlHandler(&WinWorkerHelpers::onWorkerConsoleEvent, FALSE);
         return runChild();
     }
 
-    // restart any worker that exits unexpectedly and stop on the first console control event
+    // Restart any worker that exits unexpectedly and stop on the first console control event.
     while (InterlockedCompareExchange(&gWinWorkerShutdown, 0, 0) == 0 && !workers.empty())
     {
         Sleep(100);
@@ -397,7 +397,7 @@ int App::run(int argc, char** argv)
         args.emplace_back(argv[i]);
     }
 
-    // set the chunk (script path or -e source) as arg[0] and arguments after it as arg[1..]
+    // Set the chunk (script path or -e source) as arg[0] and arguments after it as arg[1..].
     const std::size_t scriptArgIndex = eval ? 2 : 1;
     const std::string chunk = eval ? argv[2] : argv[1];
 
@@ -414,7 +414,7 @@ int App::run(int argc, char** argv)
     };
     // clang-format on
 
-    // a relaunched worker child runs the script directly instead of supervising, which would otherwise recurse
+    // A relaunched worker child runs the script directly instead of supervising, which would otherwise recurse.
     const int workers = workerCount();
     const bool workerChild = isWorkerChild();
     if (workers > 1 && !workerChild)

@@ -161,7 +161,7 @@ TEST(EventLoop, RunsJobsPostedFromAnotherThread)
     });
     // clang-format on
 
-    // hold the loop open so it cannot idle out before the cross-thread posts arrive
+    // Hold the loop open so it cannot idle out before the cross-thread posts arrive.
     ledger->enter();
     // clang-format off
     std::thread runner([&loop] { loop.run(); });
@@ -188,7 +188,7 @@ TEST(EventLoop, RunsJobsPostedFromAnotherThread)
 
 TEST(Runtime, FirstIoPoolUseRacesACrossThreadStopSafely)
 {
-    // the io pool is created lazily on one thread while stop() reaches it from another, so the attempt is repeated to land inside that narrow window
+    // The io pool is created lazily on one thread while stop() reaches it from another, so the attempt is repeated to land inside that narrow window.
     for (int attempt = 0; attempt < 64; ++attempt)
     {
         Runtime runtime(std::vector<std::string>{"varn"});

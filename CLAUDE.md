@@ -79,12 +79,14 @@ Match the existing visual, structural, and architectural pattern. Compact, profe
 
 ## Comments
 
-- **Single-line comments starting with `//` or `#` (and Lua `--`) begin lowercase. Normal prose/block comments are written normally.**
-- A comment is **one objective line, one complete sentence**, explaining intent or context — never restating what the code literally does.
-- **No trailing period on a single-line comment, no colon, and no `;` splitting clauses.** If you genuinely need multiple sentences across lines, finish each line's sentence with punctuation. Never continue one sentence onto the next line.
-- No obvious, decorative, redundant, or narrative comments. No artificial section banners like `helpers`, `validators`, `public methods`. No historical or before/after framing — describe the current code or remove the comment.
-- Usage examples belong in docs, not in comments.
-- Each important block of a complex function gets a short objective intent comment.
+- **Every comment is a complete sentence: it starts with a capital letter and ends with a full stop.**
+- **A sentence never starts with a lowercase identifier.** Keep the identifier's exact spelling and reword the sentence so it is not the first word.
+- **A comment above a function, method, class or module says what it does for the caller, never how it is implemented inside.**
+- **Never break one sentence across lines, and never continue a sentence on the next line.** If you need a second sentence, close the first with a full stop and start the next on its own line.
+- Comments are objective and natural. Nothing verbose, fragmented or narrative, no decorative banners like `helpers` or `public methods`, and no historical or before/after framing.
+- **Comment in the `.cpp`, not in the `.h`, and only where it genuinely earns its place.** A header carries declarations, not prose.
+- A comment explains intent or context. It never restates what the code literally does, and usage examples belong in the docs.
+- Code and comments are in English.
 
 ## The Lua-facing API
 

@@ -136,7 +136,7 @@ void WasmHost::pumpDeferredWork(varn::runtime::Runtime& rt)
             }
         } while (progressed);
 
-        // a pending fetch resumes via a js callback and an undue timer matures on the next pump, so either condition still expects more work even when no job ran this iteration
+        // A pending fetch resumes via a js callback and an undue timer matures on the next pump, so either condition still expects more work even when no job ran this iteration.
         const bool fetchPending = varn::wasm::WasmAsyncHost::fetchInflight().load(std::memory_order_acquire) > 0;
         const bool timerPending = rt.mainLoop().hasPendingTimers();
         if (fetchPending || timerPending)
@@ -205,7 +205,7 @@ RunResult WasmHost::runChunk(const std::string& source)
 
 #if defined(__EMSCRIPTEN__)
 
-// runs the chunk and hands control straight back, leaving whatever it armed for varnPoll to drive
+// Runs the chunk and hands control straight back, leaving whatever it armed for varnPoll to drive.
 RunResult WasmHost::loadChunk(const std::string& source)
 {
     RunResult result;
@@ -228,7 +228,7 @@ RunResult WasmHost::loadChunk(const std::string& source)
     return result;
 }
 
-// the page drives the runtime from its own loop, typically requestAnimationFrame, the same way a native app pumps it
+// The page drives the runtime from its own loop, typically requestAnimationFrame, the same way a native app pumps it.
 bool WasmHost::poll()
 {
     std::string collected;
@@ -243,7 +243,7 @@ bool WasmHost::poll()
     return more;
 }
 
-// the page supplies a native capability the same way an ios or android host does, as a json in, json out function
+// The page supplies a native capability the same way an ios or android host does, as a json in, json out function.
 void WasmHost::registerHostFunction(const std::string& name, emscripten::val callback)
 {
     // clang-format off

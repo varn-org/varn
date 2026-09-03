@@ -20,7 +20,7 @@ public:
         lua_createtable(L, 0, static_cast<int>(headers.size()));
         for (const auto& [name, value] : headers)
         {
-            // lowercase the name so a caller can look the header up case-insensitively
+            // Lowercase the name so a caller can look the header up case-insensitively.
             std::string key = name;
             for (char& c : key)
             {

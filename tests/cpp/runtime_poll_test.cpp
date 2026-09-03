@@ -18,7 +18,7 @@ extern "C" const char* recordCall(const char* argument, void*)
     return "{\"id\":7}";
 }
 
-// pumps the way a platform run loop would, giving up once nothing can make progress or the budget runs out
+// Pumps the way a platform run loop would, giving up once nothing can make progress or the budget runs out.
 int pumpUntilIdle(varn_runtime* runtime, int maxTicks)
 {
     int ticks = 0;
@@ -31,7 +31,7 @@ int pumpUntilIdle(varn_runtime* runtime, int maxTicks)
     return ticks;
 }
 
-// the host owns its thread, so loading a chunk must run it and hand back control rather than taking the thread
+// The host owns its thread, so loading a chunk must run it and hand back control rather than taking the thread.
 TEST(RuntimePoll, LoadRunsTheChunkWithoutEnteringTheLoop)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -42,7 +42,7 @@ TEST(RuntimePoll, LoadRunsTheChunkWithoutEnteringTheLoop)
     EXPECT_EQ(varn_runtime_load_string(rt, chunk, "=ui"), 0);
     const auto elapsed = std::chrono::steady_clock::now() - started;
 
-    // the sleep is still outstanding, so load must have returned well before it could have finished
+    // The sleep is still outstanding, so load must have returned well before it could have finished.
     EXPECT_LT(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), 100);
 
     pumpUntilIdle(rt, 5000);
@@ -51,7 +51,7 @@ TEST(RuntimePoll, LoadRunsTheChunkWithoutEnteringTheLoop)
     varn_runtime_free(rt);
 }
 
-// every host call has to land on the thread that pumps, since that is the platform's ui thread in a real app
+// Every host call has to land on the thread that pumps, since that is the platform's ui thread in a real app.
 TEST(RuntimePoll, HostCallsLandOnThePumpingThread)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -70,7 +70,7 @@ TEST(RuntimePoll, HostCallsLandOnThePumpingThread)
 
     EXPECT_EQ(varn_runtime_load_string(rt, chunk, "=ui"), 0);
     EXPECT_NE(g_calls.find("screen"), std::string::npos);
-    // the deferred call has not happened yet, because nothing has pumped
+    // The deferred call has not happened yet, because nothing has pumped.
     EXPECT_EQ(g_calls.find("button"), std::string::npos);
 
     pumpUntilIdle(rt, 5000);
@@ -79,7 +79,7 @@ TEST(RuntimePoll, HostCallsLandOnThePumpingThread)
     varn_runtime_free(rt);
 }
 
-// a host event is the direction a tap travels, and it must be delivered by the pump rather than by a blocking run
+// A host event is the direction a tap travels, and it must be delivered by the pump rather than by a blocking run.
 TEST(RuntimePoll, DeliversHostEventsThroughThePump)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -93,7 +93,7 @@ TEST(RuntimePoll, DeliversHostEventsThroughThePump)
     pumpUntilIdle(rt, 100);
     EXPECT_NE(g_calls.find("save"), std::string::npos);
 
-    // a second tap arriving later is delivered by a later tick, which is what an idle app looks like
+    // A second tap arriving later is delivered by a later tick, which is what an idle app looks like.
     EXPECT_EQ(varn_runtime_emit(rt, "tap", "{\"id\":\"open\"}"), 0);
     pumpUntilIdle(rt, 100);
     EXPECT_NE(g_calls.find("open"), std::string::npos);
@@ -101,7 +101,7 @@ TEST(RuntimePoll, DeliversHostEventsThroughThePump)
     varn_runtime_free(rt);
 }
 
-// polling a runtime the host has stopped must answer that nothing more can happen instead of touching Lua
+// Polling a runtime the host has stopped must answer that nothing more can happen instead of touching Lua.
 TEST(RuntimePoll, StopEndsThePump)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -117,7 +117,7 @@ TEST(RuntimePoll, StopEndsThePump)
     varn_runtime_free(rt);
 }
 
-// sockets are serviced by libuv rather than by the job queue, so the pump has to advance them too
+// Sockets are serviced by libuv rather than by the job queue, so the pump has to advance them too.
 TEST(RuntimePoll, DrivesSocketWorkAsWellAsTimers)
 {
     varn_runtime* rt = varn_runtime_new();
@@ -138,7 +138,7 @@ TEST(RuntimePoll, DrivesSocketWorkAsWellAsTimers)
 
     EXPECT_EQ(varn_runtime_load_string(rt, serving, "=serving"), 0);
 
-    // a listening server keeps the pump busy forever, so this runs until the answer lands rather than until idle
+    // A listening server keeps the pump busy forever, so this runs until the answer lands rather than until idle.
     for (int tick = 0; tick < 5000 && g_calls.find("pong") == std::string::npos; ++tick)
     {
         varn_runtime_poll(rt);

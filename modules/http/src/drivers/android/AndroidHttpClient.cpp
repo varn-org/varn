@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-// the platform http stack reached through jni, which is what makes an app's network_security_config.xml apply:
-// trust anchors, certificate pinning and the cleartext policy are declared there and enforced on the way through,
-// none of which a transport carrying its own tls stack can honour
+// The platform http stack reached through jni, which is what makes an app's network_security_config.xml apply.
+// Trust anchors, certificate pinning and the cleartext policy are declared there and enforced by the platform.
+// A transport carrying its own tls stack could honour none of them.
 
 namespace varn::http::client
 {
@@ -16,7 +16,7 @@ namespace varn::http::client
 namespace
 {
 
-// what the transport needs from java, resolved once while the app classloader is still the one in reach
+// What the transport needs from java, resolved once while the app classloader is still the one in reach.
 class AndroidJniCache
 {
 public:
@@ -42,7 +42,7 @@ public:
         return cache;
     }
 
-    // a stripped or renamed class leaves the transport unusable, and saying which one is missing is the whole diagnosis
+    // A stripped or renamed class leaves the transport unusable, and saying which one is missing is the whole diagnosis.
     void requireResolved() const
     {
         if (!unresolved.empty())
@@ -52,7 +52,7 @@ public:
     }
 };
 
-// the engine runs a request on a pool thread, which java does not know about until it is attached here
+// The engine runs a request on a pool thread, which java does not know about until it is attached here.
 class Attachment
 {
 public:
@@ -92,7 +92,7 @@ private:
     bool attached = false;
 };
 
-// an engine thread never returns to java, so without a frame of its own every request would leak its local references
+// An engine thread never returns to java, so without a frame of its own every request would leak its local references.
 class LocalFrame
 {
 public:
@@ -149,7 +149,7 @@ public:
         return array;
     }
 
-    // a header set has no bound, so each pair is released as it is read rather than left to the enclosing frame
+    // A header set has no bound, so each pair is released as it is read rather than left to the enclosing frame.
     static ResponseHeaders readHeaders(JNIEnv* env, jobjectArray names, jobjectArray values)
     {
         ResponseHeaders out;
@@ -180,7 +180,7 @@ public:
     }
 };
 
-// the arguments one call hands to java, marshalled the same way by both entry points and owned by the enclosing frame
+// The arguments one call hands to java, marshalled the same way by both entry points and owned by the enclosing frame.
 class AndroidRequest
 {
 public:
@@ -216,7 +216,7 @@ public:
     jbyteArray jBody = nullptr;
 };
 
-// what a streaming call hands back to the engine, reached from java through the handle the sink carries
+// What a streaming call hands back to the engine, reached from java through the handle the sink carries.
 struct StreamTarget
 {
     const StreamResponseFn* onResponse = nullptr;
@@ -226,7 +226,7 @@ struct StreamTarget
 class AndroidHttpRunner
 {
 public:
-    // a java exception left pending makes the next jni call undefined, so it is cleared and reported as the failure it is
+    // A java exception left pending makes the next jni call undefined, so it is cleared and reported as the failure it is.
     static void rethrowPending(JNIEnv* env)
     {
         if (env->ExceptionCheck() != JNI_TRUE)
@@ -239,7 +239,7 @@ public:
         throw std::runtime_error("[AndroidHttpClient] The platform http stack raised an exception.");
     }
 
-    // a failure on the java side arrives through the response rather than as an exception crossing jni
+    // A failure on the java side arrives through the response rather than as an exception crossing jni.
     static void rethrowFailure(JNIEnv* env, jobject answer)
     {
         if (answer == nullptr)
@@ -267,7 +267,7 @@ public:
     }
 };
 
-// one frame holds the request strings, both header arrays, the body, the answer and a little room to read it back
+// One frame holds the request strings, both header arrays, the body, the answer and a little room to read it back.
 constexpr jint kLocalFrameCapacity = 16;
 
 } // namespace
@@ -328,7 +328,7 @@ void HttpClientPerform::performStream(
 
     const AndroidRequest request(env, method, url, headers, body);
 
-    // java holds the sink only for the length of the call, so the target may live on this frame
+    // Java holds the sink only for the length of the call, so the target may live on this frame.
     StreamTarget target{&onResponse, &onChunk};
     jobject sink = env->NewObject(cache.sink, cache.newSink, reinterpret_cast<jlong>(&target));
     AndroidHttpRunner::rethrowPending(env);
@@ -376,7 +376,7 @@ void AndroidHttpBridge::publish(JavaVM* vm)
     };
     // clang-format on
 
-    // a pool thread attached later sees only the bootstrap classloader, so every class is resolved and pinned here
+    // A pool thread attached later sees only the bootstrap classloader, so every class is resolved and pinned here.
     cache.transport = pinClass("com/varn/VarnHttp");
     cache.sink = pinClass("com/varn/NativeChunkSink");
     cache.text = pinClass("java/lang/String");
@@ -413,7 +413,7 @@ void AndroidHttpBridge::publish(JavaVM* vm)
     cache.error = env->GetFieldID(response, "error", "Ljava/lang/String;");
     env->DeleteLocalRef(response);
 
-    // a renamed member is as fatal as a missing class, and the two are reported the same way
+    // A renamed member is as fatal as a missing class, and the two are reported the same way.
     const bool resolved = cache.perform != nullptr && cache.performStream != nullptr && cache.newSink != nullptr &&
                           cache.sinkHandle != nullptr && cache.status != nullptr && cache.headerNames != nullptr &&
                           cache.headerValues != nullptr && cache.body != nullptr && cache.error != nullptr;
@@ -431,7 +431,7 @@ void AndroidHttpBridge::publish(JavaVM* vm)
 namespace
 {
 
-// an escaping c++ exception would unwind through a java frame, so it is turned into the exception java expects
+// An escaping c++ exception would unwind through a java frame, so it is turned into the exception java expects.
 class NativeSinkTrampoline
 {
 public:
@@ -485,7 +485,7 @@ extern "C"
             return;
         }
 
-        // java reuses one buffer across chunks, so the valid prefix is copied out before the callback runs
+        // Java reuses one buffer across chunks, so the valid prefix is copied out before the callback runs.
         std::string bytes(static_cast<std::size_t>(length), '\0');
         env->GetByteArrayRegion(chunk, 0, length, reinterpret_cast<jbyte*>(bytes.data()));
 

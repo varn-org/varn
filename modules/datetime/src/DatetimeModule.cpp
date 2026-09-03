@@ -133,7 +133,7 @@ public:
 
         const date::year_month_day ymd = date::year_month_day{dp} + date::years{years} + date::months{months};
 
-        // snaps to the last day when the shifted month is shorter
+        // Snaps to the last day when the shifted month is shorter.
         const date::sys_days shiftedDay = ymd.ok() ? date::sys_days{ymd} : date::sys_days{ymd.year() / ymd.month() / date::last};
 
         const TimePoint result = shiftedDay + timeOfDay + date::days{static_cast<int>(days)} + std::chrono::hours{hours} + std::chrono::minutes{minutes} + std::chrono::seconds{seconds} + Millis{millisDelta};
@@ -406,7 +406,7 @@ public:
         const long long shiftMonths = sign * months;
         const long long shiftDays = sign * (weeks * 7 + days);
 
-        // the year, month and day deltas flow through int-based calendar types, so reject values that would overflow the cast
+        // The year, month and day deltas flow through int-based calendar types, so reject values that would overflow the cast.
         constexpr long long kMinInt = std::numeric_limits<int>::min();
         constexpr long long kMaxInt = std::numeric_limits<int>::max();
         if (shiftYears < kMinInt || shiftYears > kMaxInt || shiftMonths < kMinInt || shiftMonths > kMaxInt || shiftDays < kMinInt || shiftDays > kMaxInt)
@@ -414,7 +414,7 @@ public:
             return luaL_error(L, "[Datetime] A year, month, week or day delta is out of range.");
         }
 
-        // the sub-day deltas are summed into the millisecond instant, so bound each so its span cannot overflow the int64 rep
+        // The sub-day deltas are summed into the millisecond instant, so bound each so its span cannot overflow the int64 rep.
         constexpr long long kMaxSpanMs = 1000000000000000000LL;
         if (hours > kMaxSpanMs / 3600000 || hours < -(kMaxSpanMs / 3600000) || minutes > kMaxSpanMs / 60000 || minutes < -(kMaxSpanMs / 60000) || seconds > kMaxSpanMs / 1000 || seconds < -(kMaxSpanMs / 1000) || millisDelta > kMaxSpanMs || millisDelta < -kMaxSpanMs)
         {

@@ -25,7 +25,7 @@ TEST(XmlSanitizeName, GivesEmptyAndDigitLeadingNamesSafeForms)
 
 TEST(XmlSanitizeName, PreservesUtf8Bytes)
 {
-    // a utf-8 name such as café must pass through rather than collapse to underscores
+    // A utf-8 name such as café must pass through rather than collapse to underscores.
     EXPECT_EQ(XmlSerializer::sanitizeElementName("caf\xc3\xa9"), "caf\xc3\xa9");
 }
 

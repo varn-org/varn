@@ -9,7 +9,7 @@ TEST(ZipPath, EntrySafeAcceptsNormalRelativePaths)
 {
     EXPECT_TRUE(ZipPath::entryPathSafe("file.txt"));
     EXPECT_TRUE(ZipPath::entryPathSafe("a/b/c.txt"));
-    // dots inside a component are fine, only a whole ".." component is traversal
+    // Dots inside a component are fine, only a whole ".." component is traversal.
     EXPECT_TRUE(ZipPath::entryPathSafe("a..b.txt"));
     EXPECT_TRUE(ZipPath::entryPathSafe("v1.2..3/data"));
 }

@@ -47,7 +47,7 @@ bool JsonConvert::isSequence(lua_State* L, int index, lua_Integer& length)
 
 void JsonConvert::pushJson(lua_State* L, const nlohmann::json& value, int depth)
 {
-    // caps recursion depth above the deserialize pre-scan limit of 200
+    // Caps recursion depth above the deserialize pre-scan limit of 200.
     constexpr int maxDepth = 256;
     if (depth >= maxDepth || lua_checkstack(L, 4) == 0)
     {
@@ -60,7 +60,7 @@ void JsonConvert::pushJson(lua_State* L, const nlohmann::json& value, int depth)
         lua_createtable(L, 0, static_cast<int>(value.size()));
         for (auto it = value.begin(); it != value.end(); ++it)
         {
-            // pushes the key with its length to preserve an embedded nul
+            // Pushes the key with its length to preserve an embedded nul.
             const std::string& key = it.key();
             lua_pushlstring(L, key.data(), key.size());
             pushJson(L, it.value(), depth + 1);
@@ -99,7 +99,7 @@ void JsonConvert::pushJson(lua_State* L, const nlohmann::json& value, int depth)
     if (value.is_number_unsigned())
     {
         const std::uint64_t number = value.get<std::uint64_t>();
-        // keeps values past the signed range as a number since they exceed lua_Integer
+        // Keeps values past the signed range as a number since they exceed lua_Integer.
         if (number > static_cast<std::uint64_t>(std::numeric_limits<lua_Integer>::max()))
         {
             lua_pushnumber(L, static_cast<lua_Number>(number));

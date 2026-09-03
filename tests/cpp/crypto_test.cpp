@@ -53,13 +53,13 @@ TEST(CryptoRandom, OutputVariesAcrossCalls)
 
 TEST(CryptoRandom, AcceptsLargeInRangeCount)
 {
-    // a multi-megabyte request is honored because varn runs trusted local code
+    // A multi-megabyte request is honored because varn runs trusted local code.
     EXPECT_EQ(CryptoPrimitives::randomBytes(4u * 1024u * 1024u).size(), 4u * 1024u * 1024u);
 }
 
 TEST(CryptoRandom, RejectsCountPastTheIntLimit)
 {
-    // the only hard bound is the underlying api's int length argument
+    // The only hard bound is the underlying api's int length argument.
     EXPECT_THROW(CryptoPrimitives::randomBytes(static_cast<std::size_t>(INT_MAX) + 1u), std::exception);
 }
 

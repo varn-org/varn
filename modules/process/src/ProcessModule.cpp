@@ -35,7 +35,7 @@ public:
 
     static void pushArgvTable(lua_State* L, Runtime& rt)
     {
-        // builds a 1-based array of the script arguments only
+        // Builds a 1-based array of the script arguments only.
         const auto& args = rt.args();
         const std::size_t base = rt.scriptArgIndex();
 
@@ -117,7 +117,7 @@ int ProcessModule::luaGetenv(lua_State* L)
         return 1;
     }
 
-    // falls back to the optional default argument
+    // Falls back to the optional default argument.
     lua_settop(L, 2);
     return 1;
 }

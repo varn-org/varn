@@ -91,7 +91,7 @@ int Router::add(const std::string& method, const std::string& pattern)
     {
         Segment segment;
 
-        // a bare '*' captures the remaining path and surfaces it as the 'wildcard' param
+        // A bare '*' captures the remaining path and surfaces it as the 'wildcard' param.
         if (token == "*")
         {
             segment.isParam = true;
@@ -109,7 +109,7 @@ int Router::add(const std::string& method, const std::string& pattern)
             continue;
         }
 
-        // a trailing '?' on a named param makes that segment optional
+        // A trailing '?' on a named param makes that segment optional.
         segment.isOptional = token.back() == '?';
         const std::size_t length = token.size() - 1 - (segment.isOptional ? 1 : 0);
         segment.text = token.substr(1, length);
@@ -145,7 +145,7 @@ bool Router::segmentMatchesPart(const Route& route, const Segment& segment, cons
         return true;
     }
 
-    // cap the matched length so a crafted segment cannot trigger catastrophic backtracking
+    // Cap the matched length so a crafted segment cannot trigger catastrophic backtracking.
     if (part.size() > kMaxSegmentLength)
     {
         return false;
@@ -169,7 +169,7 @@ bool Router::pathMatches(const Route& route, const std::vector<std::string>& par
     {
         const Segment& segment = route.segments[i];
 
-        // a wildcard is the terminal segment and captures every remaining part joined by '/'
+        // A wildcard is the terminal segment and captures every remaining part joined by '/'.
         if (segment.isWildcard)
         {
             std::string tail;
@@ -187,7 +187,7 @@ bool Router::pathMatches(const Route& route, const std::vector<std::string>& par
             return true;
         }
 
-        // an optional param with no part left is simply skipped, leaving its value absent
+        // An optional param with no part left is simply skipped, leaving its value absent.
         if (segment.isOptional && partIndex >= parts.size())
         {
             continue;
@@ -211,7 +211,7 @@ bool Router::pathMatches(const Route& route, const std::vector<std::string>& par
             continue;
         }
 
-        // an optional param yields its segment when the value fails its constraint rather than failing the route
+        // An optional param yields its segment when the value fails its constraint rather than failing the route.
         if (!segmentMatchesPart(route, segment, part))
         {
             if (segment.isOptional)
@@ -235,14 +235,14 @@ MatchResult Router::match(const std::string& method, const std::string& path) co
 
     MatchResult result;
 
-    // bound the total path length before any matching so constraint regexes stay cheap
+    // Bound the total path length before any matching so constraint regexes stay cheap.
     if (path.size() > kMaxPathLength)
     {
         result.status = MatchStatus::NotFound;
         return result;
     }
 
-    // reject control characters that desync segment matching and leak into params, logs and headers
+    // Reject control characters that desync segment matching and leak into params, logs and headers.
     for (char c : path)
     {
         if (static_cast<unsigned char>(c) < 0x20 || c == 0x7f)
@@ -275,7 +275,7 @@ MatchResult Router::match(const std::string& method, const std::string& path) co
             return result;
         }
 
-        // a HEAD request falls back to the first matching GET handler, whose body the transport drops
+        // A HEAD request falls back to the first matching GET handler, whose body the transport drops.
         if (wanted == "HEAD" && route.method == "GET" && headFallback < 0)
         {
             headFallback = static_cast<int>(i);
@@ -327,7 +327,7 @@ std::optional<std::string> Router::buildUrl(const std::string& name, const std::
 
         const auto value = params.find(segment.text);
 
-        // an optional or wildcard param simply drops out of the url when no value is supplied
+        // An optional or wildcard param simply drops out of the url when no value is supplied.
         if (value == params.end())
         {
             if (segment.isOptional || segment.isWildcard)
@@ -338,7 +338,7 @@ std::optional<std::string> Router::buildUrl(const std::string& name, const std::
             return std::nullopt;
         }
 
-        // a wildcard value carries its own '/' separators, so each part is encoded independently
+        // A wildcard value carries its own '/' separators, so each part is encoded independently.
         if (segment.isWildcard)
         {
             for (const std::string& part : splitPath(value->second))

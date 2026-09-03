@@ -120,7 +120,7 @@ public:
 
     static void pushRequestUserdata(lua_State* L, HttpRequest&& request)
     {
-        // the request is owned by this userdata so its fields are pushed only when the handler reads them, and it survives across an await
+        // The request is owned by this userdata so its fields are pushed only when the handler reads them, and it survives across an await.
         void* memory = lua_newuserdatauv(L, sizeof(HttpRequest), 0);
         new (memory) HttpRequest(std::move(request));
         luaL_getmetatable(L, kRequestMeta);
@@ -289,7 +289,7 @@ int HttpServerLuaBindings::luaServerListen(lua_State* L)
 
     Runtime& rt = *builder->runtime;
 
-    // duplicate the registry ref for the native server lifetime because the builder userdata may be collected once the chunk returns
+    // Duplicate the registry ref for the native server lifetime because the builder userdata may be collected once the chunk returns.
     lua_rawgeti(L, LUA_REGISTRYINDEX, builder->handlerRef);
     const int persistedHandlerRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -332,18 +332,18 @@ int HttpServerLuaBindings::luaServerListen(lua_State* L)
             }
         }
 
-        // once the handler yields the promise machinery holds its own ref to the coroutine, so release ours in every case
+        // Once the handler yields the promise machinery holds its own ref to the coroutine, so release ours in every case.
         luaL_unref(mainState, LUA_REGISTRYINDEX, threadRef);
     };
     // clang-format on
 
-    // the announcement reads the endpoint before the options are moved into the engine
+    // The announcement reads the endpoint before the options are moved into the engine.
     std::ostringstream started;
     started << "Listening on " << (options.tls ? "https" : "http") << "://" << options.host << ":" << options.port << ".";
 
     auto* engine = new ReactorHttpServer(rt, std::move(options), std::move(handler));
 
-    // the runtime owns this shared_ptr and drops it inside stop(), which a host may call from another thread, so the registry is only touched while the lua state is still driven by the loop
+    // The runtime owns this shared_ptr and drops it inside stop(), which a host may call from another thread, so the registry is only touched while the lua state is still driven by the loop.
     // clang-format off
     auto server = std::shared_ptr<HttpServer>(
         engine,

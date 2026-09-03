@@ -11,7 +11,7 @@ namespace varn::http
 
 std::string HttpMultipart::extractBoundary(const std::string& contentType)
 {
-    // the parameter name is case-insensitive per rfc 2045, while the boundary value keeps its original case
+    // The parameter name is case-insensitive per rfc 2045, while the boundary value keeps its original case.
     const std::size_t pos = HttpText::toLower(contentType).find("boundary=");
     if (pos == std::string::npos)
     {
@@ -43,7 +43,7 @@ std::string HttpMultipart::multipartAttribute(const std::string& headers, const 
     std::size_t pos = 0;
     while ((pos = headers.find(key, pos)) != std::string::npos)
     {
-        // the attribute is only accepted when it starts at a real boundary, which avoids matching inside another token such as filename= or a custom x-name=
+        // The attribute is only accepted when it starts at a real boundary, which avoids matching inside another token such as filename= or a custom x-name=.
         const char previous = pos == 0 ? ' ' : headers[pos - 1];
         if (pos == 0 || previous == ' ' || previous == ';')
         {
@@ -85,7 +85,7 @@ void HttpMultipart::pushMultipart(lua_State* L, const std::string& body, const s
     const std::string delimiter = "--" + boundary;
     int fileIndex = 0;
 
-    // bound the number of parts so a body full of boundaries cannot drive unbounded parse work
+    // Bound the number of parts so a body full of boundaries cannot drive unbounded parse work.
     constexpr int maxParts = 1000;
     int parts = 0;
 
@@ -94,7 +94,7 @@ void HttpMultipart::pushMultipart(lua_State* L, const std::string& body, const s
     {
         pos += delimiter.size();
 
-        // a trailing "--" marks the final boundary
+        // A trailing "--" marks the final boundary.
         if (pos + 1 < body.size() && body[pos] == '-' && body[pos + 1] == '-')
         {
             break;
@@ -151,7 +151,7 @@ void HttpMultipart::pushMultipart(lua_State* L, const std::string& body, const s
         else if (!name.empty())
         {
             lua_getfield(L, -1, "fields");
-            // a length-safe key so a field name with an embedded nul is not truncated
+            // A length-safe key so a field name with an embedded nul is not truncated.
             lua_pushlstring(L, name.data(), name.size());
             lua_pushlstring(L, data.data(), data.size());
             lua_settable(L, -3);

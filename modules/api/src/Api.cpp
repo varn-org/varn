@@ -133,7 +133,7 @@ extern "C"
             return 2;
         }
 
-        // an unbalanced release would otherwise leave the loop holding a retain nobody can ever give back
+        // An unbalanced release would otherwise leave the loop holding a retain nobody can ever give back.
         return reinterpret_cast<varn::runtime::Runtime*>(runtime)->releaseBackgroundDriver() ? 0 : 1;
     }
 

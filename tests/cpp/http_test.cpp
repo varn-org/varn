@@ -48,7 +48,7 @@ TEST(Router, WildcardCapturesRemainingPathAsParam)
     EXPECT_EQ(deep.params[0].name, "wildcard");
     EXPECT_EQ(deep.params[0].value, "docs/2024/report.pdf");
 
-    // the wildcard also matches an empty tail
+    // The wildcard also matches an empty tail.
     const MatchResult empty = router.match("GET", "/files");
     ASSERT_EQ(empty.status, MatchStatus::Found);
     ASSERT_EQ(empty.params.size(), 1u);
@@ -80,7 +80,7 @@ TEST(Router, OptionalParamHonorsItsConstraint)
     EXPECT_EQ(router.match("GET", "/posts/7").status, MatchStatus::Found);
     EXPECT_EQ(router.match("GET", "/posts").status, MatchStatus::Found);
 
-    // a present-but-invalid optional segment leaves a trailing part the route cannot consume
+    // A present-but-invalid optional segment leaves a trailing part the route cannot consume.
     EXPECT_EQ(router.match("GET", "/posts/abc").status, MatchStatus::NotFound);
 }
 
@@ -190,7 +190,7 @@ TEST(Multipart, ReadsQuotedAttributesAtTokenBoundary)
 
 TEST(Multipart, DoesNotMatchAttributeInsideAnotherToken)
 {
-    // searching name=" must not match the name inside filename="
+    // Searching name=" must not match the name inside filename=".
     const std::string headers = "Content-Disposition: form-data; filename=\"a.txt\"";
     EXPECT_EQ(HttpMultipart::multipartAttribute(headers, "name=\""), "");
 }
@@ -234,7 +234,7 @@ TEST(HttpByteRange, RejectsInvalidInvertedAndOverflowing)
     EXPECT_FALSE(HttpRange::parse("bytes=0-99", 0, start, end));
     EXPECT_FALSE(HttpRange::parse("bytes=900-100", 1000, start, end));
     EXPECT_FALSE(HttpRange::parse("bytes=99999999999999999999999999-", 1000, start, end));
-    // non-digit endpoints must be rejected, not silently coerced by stoull
+    // Non-digit endpoints must be rejected, not silently coerced by stoull.
     EXPECT_FALSE(HttpRange::parse("bytes=+5-10", 1000, start, end));
     EXPECT_FALSE(HttpRange::parse("bytes= 5-10", 1000, start, end));
     EXPECT_FALSE(HttpRange::parse("bytes=5abc-10", 1000, start, end));

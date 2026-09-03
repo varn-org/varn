@@ -11,7 +11,7 @@ TaskPool::TaskPool(std::size_t threadCount, std::shared_ptr<WorkLedger> ledger)
 
 void TaskPool::start()
 {
-    // spawn workers only after the ledger notify hook is installed so none observes a half-set callback
+    // Spawn workers only after the ledger notify hook is installed so none observes a half-set callback.
 #if !defined(__EMSCRIPTEN__)
     if (!workers.empty())
     {
@@ -39,7 +39,7 @@ void TaskPool::post(Job job)
     {
         std::lock_guard<std::mutex> lock(mutex);
 
-        // drop work once stopped so a job no worker will ever run cannot leak a ledger entry
+        // Drop work once stopped so a job no worker will ever run cannot leak a ledger entry.
         if (!running)
         {
             return;
@@ -51,7 +51,7 @@ void TaskPool::post(Job job)
         {
             jobs.push([ledger = ledger, j = std::move(job)]() mutable
             {
-                // release the ledger entry even if the job throws so the pool keeps draining
+                // Release the ledger entry even if the job throws so the pool keeps draining.
                 try
                 {
                     j();
@@ -65,7 +65,7 @@ void TaskPool::post(Job job)
         }
         catch (...)
         {
-            // the job never entered the queue, so release the entry it will never run to balance
+            // The job never entered the queue, so release the entry it will never run to balance.
             ledger->leave();
             throw;
         }
@@ -113,7 +113,7 @@ void TaskPool::stop()
     running = false;
 #else
     {
-        // change the flag under the mutex the workers wait on so a worker that has evaluated the predicate but not yet blocked does not miss the notify
+        // Change the flag under the mutex the workers wait on so a worker that has evaluated the predicate but not yet blocked does not miss the notify.
         std::lock_guard<std::mutex> lock(mutex);
         bool expected = true;
         if (!running.compare_exchange_strong(expected, false))

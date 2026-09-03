@@ -14,7 +14,7 @@ void HttpResponse::sendFile(const std::string& path, std::uint64_t start, std::u
         return;
     }
 
-    // the buffering fallback reads the requested range up front, used only by transports that cannot stream
+    // The buffering fallback reads the requested range up front, used only by transports that cannot stream.
     std::ifstream file(path, std::ios::binary);
     if (!file)
     {

@@ -38,14 +38,14 @@ class PocoSocketTlsHelpers
 {
 public:
 #if !defined(_WIN32)
-    // the bundled openssl ships no trust store, so point verification at the os ca bundle
+    // The bundled openssl ships no trust store, so point verification at the os ca bundle.
 #endif
 
     static Poco::Net::Context::Ptr tlsClientContext(bool verify)
     {
         static Poco::Crypto::OpenSSLInitializer openSslInitializer;
 
-        // sets the ssl manager default handler once so a strict session fails closed on an invalid certificate
+        // Sets the ssl manager default handler once so a strict session fails closed on an invalid certificate.
         static std::once_flag onceFlag;
         // clang-format off
         std::call_once(onceFlag, []
@@ -58,7 +58,7 @@ public:
 #if defined(_WIN32)
         if (verify)
         {
-            // verify against the system root store since the personal store holds no trusted roots
+            // Verify against the system root store since the personal store holds no trusted roots.
             static Poco::Net::Context::Ptr strict = new Poco::Net::Context(
                 Poco::Net::Context::TLS_CLIENT_USE, "", Poco::Net::Context::VERIFY_STRICT,
                 Poco::Net::Context::OPT_DEFAULTS, Poco::Net::Context::CERT_STORE_ROOT);
@@ -107,10 +107,10 @@ void PocoStreamConnection::startTlsAsync(varn::runtime::Runtime& runtime, std::s
     varn::runtime::EventLoop* loop = &runtime.mainLoop();
     auto done = std::make_shared<SendCallback>(std::move(callback));
 
-    // enter the secure state before the pool handshake so a concurrent close defers the fd release to raii instead of racing the syscall
+    // Enter the secure state before the pool handshake so a concurrent close defers the fd release to raii instead of racing the syscall.
     markSecure(runtime);
 
-    // run the handshake through the per-connection secure strand so no queued read or write can touch the ssl object until it completes and the upgraded socket is adopted
+    // Run the handshake through the per-connection secure strand so no queued read or write can touch the ssl object until it completes and the upgraded socket is adopted.
     // clang-format off
     enqueueSecure([self, rt, loop, host, verify, done]
     {
@@ -133,7 +133,7 @@ void PocoStreamConnection::startTlsAsync(varn::runtime::Runtime& runtime, std::s
                 error = ex.what();
             }
 
-            // hand the settled transport back to the loop thread that owns the connection
+            // Hand the settled transport back to the loop thread that owns the connection.
             loop->post([self, rt, upgraded, ok, error, done]() mutable
             {
                 if (ok)
@@ -160,7 +160,7 @@ void SocketTransport::connectTlsAsync(varn::runtime::Runtime& runtime, const std
     EventLoop* loop = &runtime.mainLoop();
     auto shared = std::make_shared<ConnectCallback>(std::move(callback));
 
-    // connect and handshake blocking on the io pool so the ssl backend drives the whole exchange synchronously, keeping schannel off the loop readiness poll
+    // Connect and handshake blocking on the io pool so the ssl backend drives the whole exchange synchronously, keeping schannel off the loop readiness poll.
     // clang-format off
     runtime.ioPool().post([rt, loop, host, port, timeoutMs, verify, shared]
     {
@@ -168,7 +168,7 @@ void SocketTransport::connectTlsAsync(varn::runtime::Runtime& runtime, const std
         std::string error;
         try
         {
-            // connect the plaintext transport first, then upgrade it exactly like the mid-stream startTls path since the schannel backend drives an attached handshake reliably where its own connect path does not
+            // Connect the plaintext transport first, then upgrade it exactly like the mid-stream startTls path since the schannel backend drives an attached handshake reliably where its own connect path does not.
             Poco::Net::StreamSocket raw;
             Poco::Net::SocketAddress address(host, static_cast<Poco::UInt16>(port));
             if (timeoutMs > 0)

@@ -21,7 +21,7 @@ LuaEngine::LuaEngine(varn::runtime::Runtime& runtime)
     lua_atpanic(L, &LuaEngine::handlePanic);
     luaL_openlibs(L);
 
-    // use generational collection for short-lived garbage over a long-lived application heap
+    // Use generational collection for short-lived garbage over a long-lived application heap.
     lua_gc(L, LUA_GCGEN);
 
     varn::lua::LuaHelpers::pushRuntime(L, &runtime);
@@ -141,7 +141,7 @@ void LuaEngine::configureArgTable()
 {
     lua_newtable(L);
 
-    // index args so the chunk is arg[0], its arguments arg[1..] and the program options arg[-1..]
+    // Index args so the chunk is arg[0], its arguments arg[1..] and the program options arg[-1..].
     const auto& args = runtime.args();
     const int base = static_cast<int>(runtime.scriptArgIndex());
     for (std::size_t i = 0; i < args.size(); ++i)

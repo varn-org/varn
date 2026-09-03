@@ -24,7 +24,7 @@ bool StaticFileHandler::tryServe(const HttpRequest& request, HttpResponse& respo
 
     const std::string requestPath = request.path.empty() ? "/" : request.path;
 
-    // reject control characters and embedded null bytes that could truncate the resolved path
+    // Reject control characters and embedded null bytes that could truncate the resolved path.
     for (char c : requestPath)
     {
         if (static_cast<unsigned char>(c) < 0x20 || c == 0x7f)
@@ -35,7 +35,7 @@ bool StaticFileHandler::tryServe(const HttpRequest& request, HttpResponse& respo
         }
     }
 
-    // resolve without throwing so a path that triggers a filesystem error such as a symlink loop is treated as absent instead of abandoning the connection
+    // Resolve without throwing so a path that triggers a filesystem error such as a symlink loop is treated as absent instead of abandoning the connection.
     std::error_code ec;
     std::filesystem::path root = std::filesystem::weakly_canonical(publicDir, ec);
     if (ec)
@@ -49,7 +49,7 @@ bool StaticFileHandler::tryServe(const HttpRequest& request, HttpResponse& respo
         return false;
     }
 
-    // keep the resolved path inside the public directory tree, rejecting siblings and traversal
+    // Keep the resolved path inside the public directory tree, rejecting siblings and traversal.
     const std::filesystem::path relative = candidate.lexically_relative(root);
     if (relative.empty() || *relative.begin() == "..")
     {
@@ -58,7 +58,7 @@ bool StaticFileHandler::tryServe(const HttpRequest& request, HttpResponse& respo
         return true;
     }
 
-    // hidden files such as .env or .git are never exposed, so treat them as absent
+    // Hidden files such as .env or .git are never exposed, so treat them as absent.
     for (const auto& component : relative)
     {
         if (StaticContent::isHiddenComponent(component.string()))
@@ -69,7 +69,7 @@ bool StaticFileHandler::tryServe(const HttpRequest& request, HttpResponse& respo
 
     if (std::filesystem::is_directory(candidate, ec))
     {
-        // resolve the index through the same canonicalization so a symlinked index.html cannot escape the tree
+        // Resolve the index through the same canonicalization so a symlinked index.html cannot escape the tree.
         std::filesystem::path index = std::filesystem::weakly_canonical(candidate / "index.html", ec);
         const std::filesystem::path indexRelative = ec ? std::filesystem::path() : index.lexically_relative(root);
         bool indexInside = !indexRelative.empty() && *indexRelative.begin() != "..";

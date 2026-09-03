@@ -198,7 +198,7 @@ Poco::Net::Context::Ptr PocoClientExchange::tlsClientContext(bool verify)
 #if defined(_WIN32)
     if (verify)
     {
-        // verify against the system root store since the personal store holds no trusted public roots
+        // Verify against the system root store since the personal store holds no trusted public roots.
         static Poco::Net::Context::Ptr strict = new Poco::Net::Context(
             Poco::Net::Context::TLS_CLIENT_USE, "", Poco::Net::Context::VERIFY_STRICT,
             Poco::Net::Context::OPT_DEFAULTS, Poco::Net::Context::CERT_STORE_ROOT);
@@ -239,7 +239,7 @@ void PocoClientExchange::ensureTlsClientInitialized()
     // clang-format off
     std::call_once(sslOnce, []
     {
-        // the default handler rejects invalid certificates so strict sessions fail closed
+        // The default handler rejects invalid certificates so strict sessions fail closed.
         Poco::SharedPtr<Poco::Net::InvalidCertificateHandler> handler(new Poco::Net::RejectCertificateHandler(false));
         Poco::Net::SSLManager::instance().initializeClient(nullptr, handler, tlsClientContext(true));
     });

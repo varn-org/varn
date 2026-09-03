@@ -208,7 +208,7 @@ std::string CryptoPrimitives::hmac(std::string_view digestAlgorithm, std::string
         throw std::runtime_error("[CryptoPrimitives] The requested keyed hash algorithm is not known.");
     }
 
-    // the legacy hmac api takes int lengths so an oversized input is rejected rather than silently truncated
+    // The legacy hmac api takes int lengths so an oversized input is rejected rather than silently truncated.
     if (key.size() > static_cast<std::size_t>(INT_MAX) || data.size() > static_cast<std::size_t>(INT_MAX))
     {
         throw std::runtime_error("[CryptoPrimitives] The keyed hash input is too large.");
@@ -240,7 +240,7 @@ std::string CryptoPrimitives::hmac(std::string_view digestAlgorithm, std::string
 
 std::string CryptoPrimitives::randomBytes(std::size_t count)
 {
-    // the only hard bound is the OpenSSL api taking an int length so the caller decides how much it wants
+    // The only hard bound is the OpenSSL api taking an int length so the caller decides how much it wants.
     if (count > static_cast<std::size_t>(INT_MAX))
     {
         throw std::runtime_error("[CryptoPrimitives] The requested random byte count is too large.");
@@ -274,11 +274,11 @@ public:
 
     static std::uint64_t scryptMaxMem(std::uint64_t costN, std::uint32_t blockR)
     {
-        // scrypt needs roughly 128*N*r bytes so give it that plus headroom because the default ceiling rejects 32 MiB params
+        // Scrypt needs roughly 128*N*r bytes so give it that plus headroom because the default ceiling rejects 32 MiB params.
         return 128ULL * costN * static_cast<std::uint64_t>(blockR) * 2ULL;
     }
 
-    // the cost parameters of a stored hash decide how much memory verifying it allocates, so they are checked before scrypt is asked for anything
+    // The cost parameters of a stored hash decide how much memory verifying it allocates, so they are checked before scrypt is asked for anything.
     static bool scryptParamsAllowed(std::uint64_t costN, std::uint64_t blockR, std::uint64_t parallelP)
     {
         constexpr std::uint64_t kMaxScryptMemoryBytes = 1ULL << 30;
@@ -290,13 +290,13 @@ public:
             return false;
         }
 
-        // divide rather than multiply so an oversized cost cannot overflow the estimate it is being checked against
+        // Divide rather than multiply so an oversized cost cannot overflow the estimate it is being checked against.
         return costN <= kMaxScryptMemoryBytes / (128ULL * blockR);
     }
 
     static bool constantTimeEqual(const unsigned char* a, const unsigned char* b, std::size_t len)
     {
-        // constant-time comparison so verifying a password or auth tag does not leak its bytes through timing
+        // Constant-time comparison so verifying a password or auth tag does not leak its bytes through timing.
         unsigned char diff = 0;
         for (std::size_t i = 0; i < len; ++i)
         {
@@ -337,7 +337,7 @@ std::string CryptoPrimitives::uuidV4()
         throw std::runtime_error("[CryptoPrimitives] The uuid randomness could not be generated.");
     }
 
-    // version 4 in the high nibble of byte 6 and the rfc 4122 variant in the high bits of byte 8
+    // Version 4 in the high nibble of byte 6 and the rfc 4122 variant in the high bits of byte 8.
     bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0F) | 0x40);
     bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3F) | 0x80);
 
@@ -352,7 +352,7 @@ std::string CryptoPrimitives::uuidV7()
         throw std::runtime_error("[CryptoPrimitives] The uuid randomness could not be generated.");
     }
 
-    // the first 48 bits hold a big-endian unix millisecond timestamp so the ids sort by creation time
+    // The first 48 bits hold a big-endian unix millisecond timestamp so the ids sort by creation time.
     const std::uint64_t millis = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     bytes[0] = static_cast<unsigned char>((millis >> 40) & 0xFF);
     bytes[1] = static_cast<unsigned char>((millis >> 32) & 0xFF);
@@ -361,7 +361,7 @@ std::string CryptoPrimitives::uuidV7()
     bytes[4] = static_cast<unsigned char>((millis >> 8) & 0xFF);
     bytes[5] = static_cast<unsigned char>(millis & 0xFF);
 
-    // version 7 in the high nibble of byte 6 and the rfc 4122 variant in the high bits of byte 8
+    // Version 7 in the high nibble of byte 6 and the rfc 4122 variant in the high bits of byte 8.
     bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0F) | 0x70);
     bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3F) | 0x80);
 
@@ -441,7 +441,7 @@ std::string CryptoPrimitives::hkdf(std::string_view key, std::string_view salt, 
 
 std::string CryptoPrimitives::hashPassword(std::string_view password)
 {
-    // scrypt cost parameters chosen for an interactive login with N=2^15, r=8, p=1
+    // Scrypt cost parameters chosen for an interactive login with N=2^15, r=8, p=1.
     const std::uint64_t costN = 1ULL << 15;
     const std::uint32_t blockR = 8;
     const std::uint32_t parallelP = 1;
@@ -469,7 +469,7 @@ std::string CryptoPrimitives::hashPassword(std::string_view password)
         throw std::runtime_error("[CryptoPrimitives] The password hash could not be computed.");
     }
 
-    // self-describing format scrypt$N,r,p$base64Salt$base64Hash with base64 url-safe and no padding
+    // Self-describing format scrypt$N,r,p$base64Salt$base64Hash with base64 url-safe and no padding.
     std::ostringstream out;
     out << "scrypt$" << costN << ',' << blockR << ',' << parallelP << '$'
         << base64Encode(salt, true, false) << '$'
@@ -482,7 +482,7 @@ bool CryptoPrimitives::verifyPassword(std::string_view password, std::string_vie
 {
     const std::string text(encoded);
 
-    // split the four dollar-delimited fields algorithm, parameters, salt, hash
+    // Split the four dollar-delimited fields algorithm, parameters, salt, hash.
     const std::size_t p1 = text.find('$');
     const std::size_t p2 = p1 == std::string::npos ? p1 : text.find('$', p1 + 1);
     const std::size_t p3 = p2 == std::string::npos ? p2 : text.find('$', p2 + 1);
@@ -606,7 +606,7 @@ std::string CryptoPrimitives::aesGcmEncrypt(std::string_view key, std::string_vi
         throw std::runtime_error("[CryptoPrimitives] The plaintext could not be encrypted.");
     }
 
-    // packed layout iv||tag||ciphertext so a single blob carries everything decrypt needs
+    // Packed layout iv||tag||ciphertext so a single blob carries everything decrypt needs.
     std::string out;
     out.reserve(ivLen + tagLen + static_cast<std::size_t>(cipherLen));
     out.append(reinterpret_cast<const char*>(iv), ivLen);
@@ -665,7 +665,7 @@ std::string CryptoPrimitives::aesGcmDecrypt(std::string_view key, std::string_vi
 
     ok = ok && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, static_cast<int>(tagLen), const_cast<unsigned char*>(tag)) == 1;
 
-    // a non-positive final result means the authentication tag did not verify so the blob is rejected
+    // A non-positive final result means the authentication tag did not verify so the blob is rejected.
     const bool verified = ok && EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char*>(plain.data()) + plainLen, &len) > 0;
     plainLen += len;
 
@@ -702,7 +702,7 @@ std::string CryptoPrimitives::rsaEncryptPublic(std::string_view pemPublicKey, st
         throw std::runtime_error("[CryptoPrimitives] The RSA context could not be created.");
     }
 
-    // oaep padding with openssl's default sha1 digest is what mysql caching_sha2 full auth expects
+    // Oaep padding with openssl's default sha1 digest is what mysql caching_sha2 full auth expects.
     if (EVP_PKEY_encrypt_init(ctx) <= 0 || EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);

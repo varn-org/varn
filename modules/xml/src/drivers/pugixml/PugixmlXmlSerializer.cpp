@@ -18,7 +18,7 @@ std::string XmlSerializer::sanitizeElementName(const std::string& raw)
     out.reserve(raw.size());
     for (char c : raw)
     {
-        // keep ascii name characters and pass utf-8 bytes through so non-ascii names are not mangled
+        // Keep ascii name characters and pass utf-8 bytes through so non-ascii names are not mangled.
         if (std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.' || static_cast<unsigned char>(c) >= 0x80)
         {
             out += c;
@@ -50,7 +50,7 @@ std::string XmlSerializer::sanitizeText(const char* data, std::size_t size)
     {
         const unsigned char c = static_cast<unsigned char>(data[i]);
 
-        // drop the control characters xml 1.0 forbids so the emitted text stays well-formed and round-trips
+        // Drop the control characters xml 1.0 forbids so the emitted text stays well-formed and round-trips.
         if (c < 0x20 && c != 0x09 && c != 0x0A && c != 0x0D)
         {
             continue;
@@ -81,7 +81,7 @@ std::string XmlSerializer::serialize(lua_State* L, int index)
     lua_pushnil(L);
     while (lua_next(L, index) != 0)
     {
-        // copy the key with luaL_tolstring and drop the copy before reading the value at -1
+        // Copy the key with luaL_tolstring and drop the copy before reading the value at -1.
         const char* keyRaw = luaL_tolstring(L, -2, nullptr);
         const std::string key = keyRaw ? keyRaw : "";
         lua_pop(L, 1);
@@ -148,7 +148,7 @@ std::string XmlSerializer::encodeNode(lua_State* L, int index, int indent)
 bool XmlSerializer::parse(lua_State* L, const std::string& text)
 {
     pugi::xml_document doc;
-    // pugixml does not load external entities or expand DTD entities
+    // Pugixml does not load external entities or expand DTD entities.
     const pugi::xml_parse_result result = doc.load_buffer(text.data(), text.size(), pugi::parse_default);
     if (!result)
     {

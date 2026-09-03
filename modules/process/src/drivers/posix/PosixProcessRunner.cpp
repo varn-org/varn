@@ -27,7 +27,7 @@ namespace varn::process
 
 namespace
 {
-// bound the captured output so a child that streams without end cannot exhaust host memory
+// Bound the captured output so a child that streams without end cannot exhaust host memory.
 constexpr std::size_t kMaxCaptureBytes = 64 * 1024 * 1024;
 
 enum class Drain
@@ -46,7 +46,7 @@ public:
         return left > 0 ? left : 0;
     }
 
-    // drain stdout and stderr together so a child that fills one pipe buffer while writing the other never deadlocks the parent
+    // Drain stdout and stderr together so a child that fills one pipe buffer while writing the other never deadlocks the parent.
     static Drain drainPipes(int outFd, int errFd, std::string& outData, std::string& errData, long long timeoutMs)
     {
         std::array<char, 65536> chunk{};
@@ -119,7 +119,7 @@ public:
                     continue;
                 }
 
-                // eof or a read error retires this pipe from the poll set
+                // Eof or a read error retires this pipe from the poll set.
                 fds[i].fd = -1;
             }
         }
@@ -158,7 +158,7 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
     int outPipe[2] = {-1, -1};
     int errPipe[2] = {-1, -1};
 
-    // serialize pipe creation and fork so a concurrent spawn on another worker thread cannot inherit these descriptors
+    // Serialize pipe creation and fork so a concurrent spawn on another worker thread cannot inherit these descriptors.
     static std::mutex spawnMutex;
     pid_t pid = -1;
     {
@@ -173,7 +173,7 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
             throw std::runtime_error("[ProcessRunner] A pipe could not be created.");
         }
 
-        // mark every pipe end close-on-exec so no other exec'd process keeps a copy that would block our reads
+        // Mark every pipe end close-on-exec so no other exec'd process keeps a copy that would block our reads.
         PosixProcessHelpers::setCloexec(outPipe[0]);
         PosixProcessHelpers::setCloexec(outPipe[1]);
         PosixProcessHelpers::setCloexec(errPipe[0]);
@@ -191,10 +191,10 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
 
         if (pid == 0)
         {
-            // lead a new process group so killing the shell also reaches anything it forked, which still holds the inherited pipe ends
+            // Lead a new process group so killing the shell also reaches anything it forked, which still holds the inherited pipe ends.
             ::setpgid(0, 0);
 
-            // wire the write ends onto stdout and stderr, which clears their close-on-exec flag, then run the command through the shell
+            // Wire the write ends onto stdout and stderr, which clears their close-on-exec flag, then run the command through the shell.
             ::dup2(outPipe[1], STDOUT_FILENO);
             ::dup2(errPipe[1], STDERR_FILENO);
             ::close(outPipe[0]);
@@ -210,7 +210,7 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
             ::_exit(127);
         }
 
-        // close the write ends inside the lock so the reads see eof once the child exits and no later spawn inherits them
+        // Close the write ends inside the lock so the reads see eof once the child exits and no later spawn inherits them.
         PosixProcessHelpers::closeFd(outPipe[1]);
         PosixProcessHelpers::closeFd(errPipe[1]);
     }
@@ -220,7 +220,7 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
     PosixProcessHelpers::closeFd(outPipe[0]);
     PosixProcessHelpers::closeFd(errPipe[0]);
 
-    // a child that overran the output cap or its deadline is killed so it cannot linger holding this thread
+    // A child that overran the output cap or its deadline is killed so it cannot linger holding this thread.
     if (drained != Drain::Complete)
     {
         ::kill(-pid, SIGKILL);
@@ -239,7 +239,7 @@ ProcessResult ProcessRunner::exec(const std::string& command, long long timeoutM
     }
     else if (WIFSIGNALED(status))
     {
-        // reports a signalled exit as 128 plus the signal number
+        // Reports a signalled exit as 128 plus the signal number.
         result.code = 128 + WTERMSIG(status);
     }
 

@@ -54,7 +54,7 @@ public:
 };
 } // namespace
 
-// lua surface wrapping the raw primitives into an ergonomic response plus query/json options
+// Lua surface wrapping the raw primitives into an ergonomic response plus query/json options.
 static const char* const kClientPrelude = R"lua(
 local client = ...
 local requestRaw = client.requestRaw
@@ -214,7 +214,7 @@ public:
         lua_pushnil(L);
         while (lua_next(L, absIndex) != 0)
         {
-            // coerce a copy of the key so lua_next still sees the original on the next step
+            // Coerce a copy of the key so lua_next still sees the original on the next step.
             lua_pushvalue(L, -2);
             std::size_t keyLen = 0;
             std::size_t valLen = 0;
@@ -265,7 +265,7 @@ public:
         }
         lua_pop(L, 1);
 
-        // tls verification is on by default, with insecure as an explicit opt-in for dev certs
+        // Tls verification is on by default, with insecure as an explicit opt-in for dev certs.
         lua_getfield(L, 1, "verifyTls");
         if (lua_isboolean(L, -1))
         {
@@ -338,7 +338,7 @@ int HttpClientModule::luaClientRequest(lua_State* L)
         }
         catch (...)
         {
-            // a worker thread must never let an exception escape and terminate the process
+            // A worker thread must never let an exception escape and terminate the process.
             promise->reject("[HttpClientModule] The request failed with a non-standard error.");
         }
     });
@@ -363,7 +363,7 @@ int HttpClientModule::luaClientStream(lua_State* L)
     varn::http::client::ClientRequestOptions options;
     HttpClientHelpers::readClientOptions(L, methodStr, headers, body, options);
 
-    // hold the chunk callback and the optional response callback in the registry for the duration of the stream
+    // Hold the chunk callback and the optional response callback in the registry for the duration of the stream.
     lua_pushvalue(L, 2);
     const int onChunkRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -485,7 +485,7 @@ void HttpClientModule::installPrelude(lua_State* L)
         luaL_error(L, "[HttpClientModule] The client prelude failed to compile: %s", message ? message : "");
     }
 
-    // pass the client table currently on top of the stack to the prelude as its single argument
+    // Pass the client table currently on top of the stack to the prelude as its single argument.
     lua_pushvalue(L, -2);
     if (lua_pcall(L, 1, 0, 0) != LUA_OK)
     {
@@ -506,7 +506,7 @@ void HttpClientModule::registerClient(lua_State* L)
 
     lua_newtable(L);
 
-    // the raw primitives resolve to a { status, headers, body } table and the prelude layers ergonomics over them
+    // The raw primitives resolve to a { status, headers, body } table and the prelude layers ergonomics over them.
     lua_pushcfunction(L, &HttpClientModule::luaClientRequest);
     lua_setfield(L, -2, "requestRaw");
 

@@ -41,7 +41,7 @@ bool HttpRange::parse(const std::string& header, std::uintmax_t total, std::uint
     const std::string first = spec.substr(0, dash);
     const std::string last = spec.substr(dash + 1);
 
-    // each present endpoint must be a run of digits, and an empty endpoint is allowed on one side only
+    // Each present endpoint must be a run of digits, and an empty endpoint is allowed on one side only.
     if ((!first.empty() && !allDigits(first)) || (!last.empty() && !allDigits(last)))
     {
         return false;
@@ -51,7 +51,7 @@ bool HttpRange::parse(const std::string& header, std::uintmax_t total, std::uint
     {
         if (first.empty())
         {
-            // a suffix range asks for the final bytes of the file
+            // A suffix range asks for the final bytes of the file.
             if (last.empty())
             {
                 return false;

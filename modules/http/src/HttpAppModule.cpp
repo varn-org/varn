@@ -58,7 +58,7 @@ constexpr const char* kContextMeta = "varn.HttpContext";
 constexpr const char* kWsConnMeta = "varn.HttpWsConn";
 constexpr const char* kSseMeta = "varn.HttpSse";
 
-// bound the rate-limit store the way the session store is bounded, since an ipv6 client can source from a whole prefix
+// Bound the rate-limit store the way the session store is bounded, since an ipv6 client can source from a whole prefix.
 constexpr long long kMaxRateLimitBuckets = 100000;
 
 struct Group
@@ -90,7 +90,7 @@ struct WsRoute
     std::vector<std::string> allowedOrigins;
 };
 
-// one live websocket connection tracked in the app so broadcasts and rooms can reach it without a use-after-free
+// One live websocket connection tracked in the app so broadcasts and rooms can reach it without a use-after-free.
 struct WsConnRecord
 {
     std::weak_ptr<WebSocketConnection> conn;
@@ -98,7 +98,7 @@ struct WsConnRecord
     std::vector<std::string> rooms;
 };
 
-// shared between the transport thread that owns the socket and the main loop that runs lua callbacks
+// Shared between the transport thread that owns the socket and the main loop that runs lua callbacks.
 struct AppState
 {
     Router router;
@@ -417,7 +417,7 @@ long long HttpApp::nowMs()
 
 std::string HttpApp::randomSessionId()
 {
-    // use the vetted csprng so session and csrf tokens are unpredictable on every platform
+    // Use the vetted csprng so session and csrf tokens are unpredictable on every platform.
     const std::string bytes = varn::crypto::CryptoPrimitives::randomBytes(16);
     std::ostringstream id;
     for (unsigned char byte : bytes)
@@ -430,7 +430,7 @@ std::string HttpApp::randomSessionId()
 
 void HttpApp::warnSessionStoreIsPerProcess()
 {
-    // the store lives in this process, so with several workers the kernel spreads a client's requests across stores that cannot see each other
+    // The store lives in this process, so with several workers the kernel spreads a client's requests across stores that cannot see each other.
     static bool warned = false;
     if (warned || varn::runtime::App::workerCount() <= 1)
     {
@@ -443,7 +443,7 @@ void HttpApp::warnSessionStoreIsPerProcess()
 
 void HttpApp::sweepSessions(AppState& app, lua_State* L, long long now)
 {
-    // each lookup already rejects an expired entry, so the full scan only needs to run periodically to reclaim abandoned sessions
+    // Each lookup already rejects an expired entry, so the full scan only needs to run periodically to reclaim abandoned sessions.
     constexpr long long kSweepIntervalMs = 60000;
     if (now - app.sessionsSweptMs < kSweepIntervalMs)
     {
@@ -500,7 +500,7 @@ int HttpApp::luaContextHeader(lua_State* L)
         const std::string name = LuaHelpers::checkString(L, 2);
         const std::string value = LuaHelpers::checkString(L, 3);
 
-        // an rfc 9110 field name is a token, so reject controls, whitespace and the colon separator
+        // An rfc 9110 field name is a token, so reject controls, whitespace and the colon separator.
         if (name.empty())
         {
             throw std::runtime_error("[HttpApp] A header name is required.");
@@ -672,7 +672,7 @@ int HttpApp::luaContextCookie(lua_State* L)
             const bool secure = lua_toboolean(L, -1) != 0;
             lua_pop(L, 1);
 
-            // a sameSite attribute is only valid as Strict, Lax or None
+            // A sameSite attribute is only valid as Strict, Lax or None.
             std::string sameSite;
             lua_getfield(L, 4, "sameSite");
             if (lua_isstring(L, -1))
@@ -699,7 +699,7 @@ int HttpApp::luaContextCookie(lua_State* L)
 
             lua_pop(L, 1);
 
-            // browsers reject a SameSite=None cookie that is not also marked Secure
+            // Browsers reject a SameSite=None cookie that is not also marked Secure.
             if (sameSite == "None" && !secure)
             {
                 throw std::runtime_error("[HttpApp] A SameSite=None cookie must also be Secure.");
@@ -791,7 +791,7 @@ int HttpApp::luaContextSession(lua_State* L)
     auto* context = checkContext(L);
     AppState* app = context->app.get();
 
-    // reuse the table if this request already resolved its session
+    // Reuse the table if this request already resolved its session.
     lua_getiuservalue(L, 1, 4);
     if (!lua_isnil(L, -1))
     {
@@ -819,7 +819,7 @@ int HttpApp::luaContextSession(lua_State* L)
     auto entry = app->sessions.find(id);
     if (!id.empty() && entry != app->sessions.end() && now - entry->second.lastAccessMs > app->sessionTtlMs)
     {
-        // drop a session that outlived its ttl between periodic sweeps
+        // Drop a session that outlived its ttl between periodic sweeps.
         luaL_unref(L, LUA_REGISTRYINDEX, entry->second.dataRef);
         app->sessions.erase(entry);
         entry = app->sessions.end();
@@ -827,10 +827,10 @@ int HttpApp::luaContextSession(lua_State* L)
 
     if (id.empty() || entry == app->sessions.end())
     {
-        // start a new session and hand its id to the client
+        // Start a new session and hand its id to the client.
         id = randomSessionId();
 
-        // bound the store so anonymous traffic cannot exhaust memory
+        // Bound the store so anonymous traffic cannot exhaust memory.
         if (app->sessions.size() >= app->maxSessions)
         {
             evictOldestSession(*app, L);
@@ -867,7 +867,7 @@ int HttpApp::luaContextRegenerateSession(lua_State* L)
     AppState* app = context->app.get();
     const long long now = nowMs();
 
-    // resolve the session first so there is data to carry over to the new id
+    // Resolve the session first so there is data to carry over to the new id.
     luaContextSession(L);
     lua_pop(L, 1);
 
@@ -878,7 +878,7 @@ int HttpApp::luaContextRegenerateSession(lua_State* L)
         return 1;
     }
 
-    // move the existing data under a fresh id and drop the old one to defeat fixation
+    // Move the existing data under a fresh id and drop the old one to defeat fixation.
     const int dataRef = current->second.dataRef;
     app->sessions.erase(current);
 
@@ -899,7 +899,7 @@ int HttpApp::luaContextRegenerateSession(lua_State* L)
 
     context->response->addHeader("Set-Cookie", cookie);
 
-    // rotate the csrf token with the session so the double-submit cookie stays bound to the new id, the way django and rails do on login
+    // Rotate the csrf token with the session so the double-submit cookie stays bound to the new id, the way django and rails do on login.
     if (!app->csrfSecret.empty())
     {
         std::string csrfCookie = app->csrfCookie + "=" + HttpToken::makeCsrfToken(app->csrfSecret, id) + "; Path=/; SameSite=Lax";
@@ -923,7 +923,7 @@ std::string HttpApp::contentDispositionAttachment(const std::string& filename)
 
     for (unsigned char c : filename)
     {
-        // separators and controls must never reach the header in either form
+        // Separators and controls must never reach the header in either form.
         if (c == '/' || c == '\\' || c < 0x20 || c == 0x7f)
         {
             continue;
@@ -969,7 +969,7 @@ int HttpApp::luaContextFile(lua_State* L)
 
     context->response->setHeader("Content-Type", MimeTypes::forPath(path));
 
-    // an optional download flag turns the response into an attachment
+    // An optional download flag turns the response into an attachment.
     if (lua_istable(L, 3))
     {
         lua_getfield(L, 3, "download");
@@ -1018,7 +1018,7 @@ int HttpApp::luaContextCache(lua_State* L)
 {
     auto* context = checkContext(L);
 
-    // a number is shorthand for a public max-age and a table spells out the directives
+    // A number is shorthand for a public max-age and a table spells out the directives.
     if (lua_isinteger(L, 2) || lua_isnumber(L, 2))
     {
         context->response->setHeader("Cache-Control", "public, max-age=" + std::to_string(static_cast<long long>(luaL_checkinteger(L, 2))));
@@ -1085,7 +1085,7 @@ int HttpApp::luaContextEtag(lua_State* L)
     auto* context = checkContext(L);
     std::string tag = LuaHelpers::checkString(L, 2);
 
-    // quote a bare value so the header is a well-formed entity tag, leaving a weak or already-quoted one alone
+    // Quote a bare value so the header is a well-formed entity tag, leaving a weak or already-quoted one alone.
     const bool weak = tag.rfind("W/", 0) == 0;
     const std::string core = weak ? tag.substr(2) : tag;
     if (core.size() < 2 || core.front() != '"' || core.back() != '"')
@@ -1095,11 +1095,11 @@ int HttpApp::luaContextEtag(lua_State* L)
 
     context->response->setHeader("ETag", tag);
 
-    // a matching If-None-Match short-circuits to 304 so the client reuses its cached copy and a later json or html call is a no-op on the finished response
+    // A matching If-None-Match short-circuits to 304 so the client reuses its cached copy and a later json or html call is a no-op on the finished response.
     const std::string ifNoneMatch = requestHeaderCI(L, "If-None-Match");
     if (!ifNoneMatch.empty())
     {
-        // compare each listed validator by weak equality rather than a loose substring so a prefix tag never yields a false 304
+        // Compare each listed validator by weak equality rather than a loose substring so a prefix tag never yields a false 304.
         std::string wantTag = tag;
         if (wantTag.rfind("W/", 0) == 0)
         {
@@ -1151,7 +1151,7 @@ int HttpApp::luaContextAccepts(lua_State* L)
     const int argc = lua_gettop(L);
     const std::string accept = HttpText::toLower(requestHeaderCI(L, "Accept"));
 
-    // split the header into media ranges with their parameters and surrounding spaces stripped
+    // Split the header into media ranges with their parameters and surrounding spaces stripped.
     std::vector<std::string> ranges;
     std::size_t pos = 0;
     while (pos <= accept.size())
@@ -1179,7 +1179,7 @@ int HttpApp::luaContextAccepts(lua_State* L)
         pos = comma + 1;
     }
 
-    // an exact range for an offered type wins over the wildcard fallback, matching the full type or a bare subtype
+    // An exact range for an offered type wins over the wildcard fallback, matching the full type or a bare subtype.
     for (int i = 2; i <= argc; ++i)
     {
         const std::string offered = HttpText::toLower(LuaHelpers::checkString(L, i));
@@ -1196,7 +1196,7 @@ int HttpApp::luaContextAccepts(lua_State* L)
         }
     }
 
-    // a missing or wildcard Accept header takes anything, so the first offered type is returned
+    // A missing or wildcard Accept header takes anything, so the first offered type is returned.
     const bool wildcard = accept.empty() || std::find(ranges.begin(), ranges.end(), "*/*") != ranges.end();
     if (wildcard && argc >= 2)
     {
@@ -1210,7 +1210,7 @@ int HttpApp::luaContextAccepts(lua_State* L)
 
 void HttpApp::rejectSseLineBreak(const std::string& value, const char* what)
 {
-    // this text occupies a whole line of the stream, so a line break in it would let the caller forge every field after it
+    // This text occupies a whole line of the stream, so a line break in it would let the caller forge every field after it.
     if (value.find_first_of("\r\n") != std::string::npos)
     {
         throw std::runtime_error(std::string("[HttpApp] An sse ") + what + " must not contain a line break.");
@@ -1219,7 +1219,7 @@ void HttpApp::rejectSseLineBreak(const std::string& value, const char* what)
 
 void HttpApp::appendSseData(const std::string& data, std::string& frame)
 {
-    // the spec ends a line on cr, lf or crlf alike, so each one opens a fresh data field instead of escaping the frame
+    // The spec ends a line on cr, lf or crlf alike, so each one opens a fresh data field instead of escaping the frame.
     std::size_t start = 0;
     for (;;)
     {
@@ -1251,7 +1251,7 @@ int HttpApp::luaSseSend(lua_State* L)
         std::string event;
         std::string data;
 
-        // the two-argument form names the event and the one-argument form sends a default-event message
+        // The two-argument form names the event and the one-argument form sends a default-event message.
         if (lua_gettop(L) >= 3)
         {
             event = LuaHelpers::checkString(L, 2);
@@ -1290,7 +1290,7 @@ int HttpApp::luaSseComment(lua_State* L)
         const std::string text = LuaHelpers::optionalString(L, 2, "");
         rejectSseLineBreak(text, "comment");
 
-        // a comment line is the conventional heartbeat that keeps the stream and any proxies alive
+        // A comment line is the conventional heartbeat that keeps the stream and any proxies alive.
         writer->response->writeChunk(": " + text + "\n\n");
         lua_pushvalue(L, 1);
         return 1;
@@ -1542,7 +1542,7 @@ int HttpApp::chainContinue(lua_State* L, int status, lua_KContext ctx)
 
 int HttpApp::chainNext(lua_State* L)
 {
-    // upvalue 5 is a one-slot flag table guarding against a middleware that calls next() more than once, since a second call must not re-run the rest of the chain and double session writes, Set-Cookie headers and rate-limit increments
+    // Upvalue 5 is a one-slot flag table guarding against a middleware that calls next() more than once, since a second call must not re-run the rest of the chain and double session writes, Set-Cookie headers and rate-limit increments.
     lua_rawgeti(L, lua_upvalueindex(5), 1);
     const bool alreadyFired = lua_toboolean(L, -1) != 0;
     lua_pop(L, 1);
@@ -1565,7 +1565,7 @@ int HttpApp::chainNext(lua_State* L)
     lua_rawgeti(L, lua_upvalueindex(1), index);
     lua_pushvalue(L, lua_upvalueindex(2));
 
-    // the last entry is the handler and runs without a next
+    // The last entry is the handler and runs without a next.
     if (index == count)
     {
         lua_callk(L, 1, 0, 0, &chainContinue);
@@ -1654,7 +1654,7 @@ int HttpApp::buildChain(lua_State* L, int chainIndex, const std::shared_ptr<AppS
 
     if (match.status == MatchStatus::MethodNotAllowed)
     {
-        // advertise the supported methods, including the HEAD and OPTIONS the server answers automatically
+        // Advertise the supported methods, including the HEAD and OPTIONS the server answers automatically.
         std::vector<std::string> methods = match.allowedMethods;
         const bool hasGet = std::find(methods.begin(), methods.end(), "GET") != methods.end();
         if (hasGet && std::find(methods.begin(), methods.end(), "HEAD") == methods.end())
@@ -1680,7 +1680,7 @@ int HttpApp::buildChain(lua_State* L, int chainIndex, const std::shared_ptr<AppS
 
         lua_pushlstring(L, allow.data(), allow.size());
 
-        // an unhandled OPTIONS for a known path is answered with the method list instead of a 405
+        // An unhandled OPTIONS for a known path is answered with the method list instead of a 405.
         lua_pushcclosure(L, method == "OPTIONS" ? &terminalAutoOptions : &terminalMethodNotAllowed, 1);
         lua_rawseti(L, chainIndex, ++length);
         return length;
@@ -1721,7 +1721,7 @@ int HttpApp::dispatchFinalize(lua_State* L, int status, lua_KContext kctx)
     const int chainRef = context->chainRef;
     lua_pop(L, 1);
 
-    // a failed request runs the central error handler, which must stay synchronous
+    // A failed request runs the central error handler, which must stay synchronous.
     if (failed && app->errorHandlerRef != LUA_NOREF)
     {
         lua_rawgeti(L, LUA_REGISTRYINDEX, app->errorHandlerRef);
@@ -1746,7 +1746,8 @@ int HttpApp::dispatchFinalize(lua_State* L, int status, lua_KContext kctx)
         response->end(failed ? "Internal server error." : "");
     }
 
-    // onResponse hooks always run once the outcome is decided, even on errors or unmatched routes, and the refs are copied so a hook may register more without invalidating the loop
+    // The onResponse hooks always run once the outcome is decided, even on an error or an unmatched route.
+    // Their refs are copied so a hook may register more without invalidating the loop.
     const std::vector<int> responseHooks = app->responseHooks;
     for (int ref : responseHooks)
     {
@@ -1785,7 +1786,7 @@ void HttpApp::runDispatch(const std::shared_ptr<AppState>& app, const HttpReques
     lua_State* mainState = app->runtime->luaState();
     const MatchResult match = app->router.match(request.method, request.path);
 
-    // routes win, then static files answer unmatched paths before the not-found handler
+    // Routes win, then static files answer unmatched paths before the not-found handler.
     if (match.status == MatchStatus::NotFound && app->staticFiles && app->staticFiles->tryServe(request, *response))
     {
         return;
@@ -1805,7 +1806,8 @@ void HttpApp::runDispatch(const std::shared_ptr<AppState>& app, const HttpReques
     lua_pushvalue(thread, -1);
     context->selfRef = luaL_ref(thread, LUA_REGISTRYINDEX);
 
-    // onRequest hooks observe and set up the context before the chain runs, and the refs are copied so a hook may register more without invalidating the loop
+    // The onRequest hooks observe and set up the context before the chain runs.
+    // Their refs are copied so a hook may register more without invalidating the loop.
     const std::vector<int> requestHooks = app->requestHooks;
     for (int ref : requestHooks)
     {
@@ -1819,7 +1821,7 @@ void HttpApp::runDispatch(const std::shared_ptr<AppState>& app, const HttpReques
         }
     }
 
-    // assemble the coroutine body with the chain, context, length and context ref as upvalues
+    // Assemble the coroutine body with the chain, context, length and context ref as upvalues.
     lua_rawgeti(thread, LUA_REGISTRYINDEX, context->chainRef);
     lua_pushvalue(thread, 1);
     lua_pushinteger(thread, count);
@@ -1830,7 +1832,7 @@ void HttpApp::runDispatch(const std::shared_ptr<AppState>& app, const HttpReques
     int results = 0;
     const int status = lua_resume(thread, mainState, 0, &results);
 
-    // dispatchFinalize owns cleanup, so only a dispatcher-level failure is handled here
+    // Cleanup belongs to dispatchFinalize, so only a dispatcher-level failure is handled here.
     if (status != LUA_OK && status != LUA_YIELD)
     {
         const char* message = lua_tostring(thread, -1);
@@ -1908,7 +1910,7 @@ std::string HttpApp::requestHeaderCI(lua_State* L, const std::string& name)
 
 std::string HttpApp::clientIp(lua_State* L, bool trustProxy)
 {
-    // behind a trusted proxy the original client is the leftmost entry of x-forwarded-for
+    // Behind a trusted proxy the original client is the leftmost entry of x-forwarded-for.
     if (trustProxy)
     {
         const std::string forwarded = requestHeaderCI(L, "X-Forwarded-For");
@@ -1931,7 +1933,7 @@ std::string HttpApp::clientIp(lua_State* L, bool trustProxy)
                     }
                 }
 
-                // a forwarded value carrying control bytes could truncate or poison the rate-limit key, so fall back to the socket address
+                // A forwarded value carrying control bytes could truncate or poison the rate-limit key, so fall back to the socket address.
                 if (!hasControl)
                 {
                     return candidate;
@@ -1975,7 +1977,7 @@ int HttpApp::corsMiddleware(lua_State* L)
     const int opts = lua_upvalueindex(1);
 
     {
-        // resolve the allowed origin to a fixed value or an allowlist that echoes a matching request origin
+        // Resolve the allowed origin to a fixed value or an allowlist that echoes a matching request origin.
         std::string allowOrigin = "*";
         bool originResolved = true;
         bool varyOrigin = false;
@@ -2008,7 +2010,7 @@ int HttpApp::corsMiddleware(lua_State* L)
 
         lua_pop(L, 1);
 
-        // an unmatched allowlist origin leaves the header unset so the browser blocks the response
+        // An unmatched allowlist origin leaves the header unset so the browser blocks the response.
         if (originResolved)
         {
             context->response->setHeader("Access-Control-Allow-Origin", allowOrigin);
@@ -2039,7 +2041,7 @@ int HttpApp::corsMiddleware(lua_State* L)
             context->response->setHeader("Access-Control-Expose-Headers", expose);
         }
 
-        // a genuine preflight carries Access-Control-Request-Method, so only those short-circuit routing
+        // A genuine preflight carries Access-Control-Request-Method, so only those short-circuit routing.
         if (requestField(L, "method") == "OPTIONS" && !requestHeaderCI(L, "Access-Control-Request-Method").empty())
         {
             context->response->setStatus(204);
@@ -2069,7 +2071,7 @@ int HttpApp::securityHeadersMiddleware(lua_State* L)
             context->response->setHeader("Content-Security-Policy", csp);
         }
 
-        // hsts is only meaningful over tls, so never advertise it on a plaintext listener
+        // Hsts is only meaningful over tls, so never advertise it on a plaintext listener.
         const long long hsts = optInt(L, opts, "hsts", 0);
         if (hsts > 0 && context->app->tls)
         {
@@ -2180,7 +2182,7 @@ int HttpApp::rateLimitMiddleware(lua_State* L)
         const long long now = nowMs();
         const std::string ip = clientIp(L, trustProxy);
 
-        // keep per-ip buckets in a dedicated subtable so a client address can never collide with bookkeeping keys
+        // Keep per-ip buckets in a dedicated subtable so a client address can never collide with bookkeeping keys.
         lua_getfield(L, state, "buckets");
         if (!lua_istable(L, -1))
         {
@@ -2196,7 +2198,7 @@ int HttpApp::rateLimitMiddleware(lua_State* L)
         long long live = lua_tointeger(L, -1);
         lua_pop(L, 1);
 
-        // drop expired buckets at most once per window so the per-request cost stays near constant
+        // Drop expired buckets at most once per window so the per-request cost stays near constant.
         lua_getfield(L, state, "sweptAt");
         const long long sweptAt = lua_tointeger(L, -1);
         lua_pop(L, 1);
@@ -2223,7 +2225,7 @@ int HttpApp::rateLimitMiddleware(lua_State* L)
 
         lua_pop(L, 1);
 
-        // an address the store has never seen adds a bucket, which is the only path that can grow it
+        // An address the store has never seen adds a bucket, which is the only path that can grow it.
         if (!known)
         {
             if (live >= maxClients)
@@ -2231,7 +2233,7 @@ int HttpApp::rateLimitMiddleware(lua_State* L)
                 live = sweepRateBuckets(L, buckets, now);
             }
 
-            // a flood of distinct addresses must not grow the store without bound, so a store that is still full after the sweep starts a fresh window for everyone
+            // A flood of distinct addresses must not grow the store without bound, so a store that is still full after the sweep starts a fresh window for everyone.
             if (live >= maxClients)
             {
                 lua_newtable(L);
@@ -2287,7 +2289,7 @@ int HttpApp::luaCors(lua_State* L)
     {
         if (lua_istable(L, 1))
         {
-            // reject the invalid wildcard-with-credentials combination at setup time, never silently
+            // Reject the invalid wildcard-with-credentials combination at setup time, never silently.
             lua_getfield(L, 1, "credentials");
             const bool credentials = lua_toboolean(L, -1) != 0;
             lua_pop(L, 1);
@@ -2374,7 +2376,7 @@ int HttpApp::luaJwtSign(lua_State* L)
         const long long expiresIn = optInt(L, 3, "expiresIn", 0);
         const long long notBefore = optInt(L, 3, "notBefore", 0);
 
-        // copy the caller's claims so signing never mutates the input table
+        // Copy the caller's claims so signing never mutates the input table.
         lua_newtable(L);
         const int claims = lua_gettop(L);
         lua_pushnil(L);
@@ -2386,7 +2388,7 @@ int HttpApp::luaJwtSign(lua_State* L)
             lua_pop(L, 1);
         }
 
-        // iat is added when the caller did not set it, while exp and nbf reflect the requested window
+        // Iat is added when the caller did not set it, while exp and nbf reflect the requested window.
         lua_getfield(L, claims, "iat");
         const bool hasIat = !lua_isnil(L, -1);
         lua_pop(L, 1);
@@ -2464,7 +2466,7 @@ int HttpApp::jwtAuthMiddleware(lua_State* L)
             return 0;
         }
 
-        // expose the verified claims to handlers as ctx.state.user before destroying local strings
+        // Expose the verified claims to handlers as ctx.state.user before destroying local strings.
         lua_getiuservalue(L, 1, 3);
         lua_pushvalue(L, -2);
         lua_setfield(L, -2, "user");
@@ -2575,16 +2577,16 @@ int HttpApp::csrfMiddleware(lua_State* L)
             const std::string headerName = optString(L, opts, "header", "X-CSRF-Token");
             const std::string method = requestField(L, "method");
 
-            // remember the cookie name so regenerateSession can rotate the token bound to the session
+            // Remember the cookie name so regenerateSession can rotate the token bound to the session.
             app->csrfCookie = cookieName;
 
-            // a per-app secret signs every token so an injected or forged cookie cannot pass verification
+            // A per-app secret signs every token so an injected or forged cookie cannot pass verification.
             if (app->csrfSecret.empty())
             {
                 app->csrfSecret = varn::crypto::CryptoPrimitives::randomBytes(32);
             }
 
-            // bind the token to the session, which also establishes the session cookie when absent
+            // Bind the token to the session, which also establishes the session cookie when absent.
             luaContextSession(L);
             lua_pop(L, 1);
             const std::string sessionId = context->sessionId;
@@ -2613,7 +2615,7 @@ int HttpApp::csrfMiddleware(lua_State* L)
                     valid = false;
                 }
 
-                // issue a fresh token only when the client lacks a valid one, keeping it readable for the header echo
+                // Issue a fresh token only when the client lacks a valid one, keeping it readable for the header echo.
                 if (!valid)
                 {
                     cookieToken = HttpToken::makeCsrfToken(app->csrfSecret, sessionId);
@@ -2627,7 +2629,7 @@ int HttpApp::csrfMiddleware(lua_State* L)
                     context->response->addHeader("Set-Cookie", csrfCookie);
                 }
 
-                // publish the token to ctx.state before destroying local strings
+                // Publish the token to ctx.state before destroying local strings.
                 lua_getiuservalue(L, 1, 3);
                 lua_pushlstring(L, cookieToken.data(), cookieToken.size());
                 lua_setfield(L, -2, "csrfToken");
@@ -2844,7 +2846,7 @@ void HttpApp::handleWebSocketUpgrade(const std::shared_ptr<AppState>& app, const
         return;
     }
 
-    // an origin allowlist blocks cross-site upgrades when the route declares one
+    // An origin allowlist blocks cross-site upgrades when the route declares one.
     if (!route->allowedOrigins.empty())
     {
         std::string origin;
@@ -2880,7 +2882,7 @@ void HttpApp::handleWebSocketUpgrade(const std::shared_ptr<AppState>& app, const
     pushWsConn(L, conn, app, request.path);
     const int connRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
-    // track the live connection so broadcasts and rooms can reach it, using a weak_ptr that never keeps it alive past close
+    // Track the live connection so broadcasts and rooms can reach it, using a weak_ptr that never keeps it alive past close.
     app->wsConnections.emplace(conn.get(), WsConnRecord{conn, request.path, {}});
 
     callWsCallback(app, route->openRef, connRef);
@@ -2928,7 +2930,7 @@ int HttpApp::luaWs(lua_State* L)
     route.messageRef = refField("message");
     route.closeRef = refField("close");
 
-    // an optional origin allowlist blocks cross-site upgrades when set
+    // An optional origin allowlist blocks cross-site upgrades when set.
     lua_getfield(L, 3, "origins");
     if (lua_istable(L, -1))
     {
@@ -2961,7 +2963,7 @@ int HttpApp::luaWsBroadcast(lua_State* L)
     const char* raw = luaL_checklstring(L, 3, &length);
     const std::string message(raw, length);
 
-    // a send to a peer that has stopped draining closes it, which erases its record, so the targets are snapshotted before any of them is written to
+    // A send to a peer that has stopped draining closes it, which erases its record, so the targets are snapshotted before any of them is written to.
     std::vector<std::shared_ptr<WebSocketConnection>> targets;
     targets.reserve(app->state->wsConnections.size());
     for (const auto& [key, record] : app->state->wsConnections)
@@ -2994,7 +2996,7 @@ int HttpApp::luaWsBroadcastRoom(lua_State* L)
     const char* raw = luaL_checklstring(L, 3, &length);
     const std::string message(raw, length);
 
-    // the same snapshot rule as wsBroadcast, since closing a stalled peer erases the record the loop is walking
+    // The same snapshot rule as wsBroadcast, since closing a stalled peer erases the record the loop is walking.
     std::vector<std::shared_ptr<WebSocketConnection>> targets;
     targets.reserve(app->state->wsConnections.size());
     for (const auto& [key, record] : app->state->wsConnections)
@@ -3299,7 +3301,7 @@ int HttpApp::luaEmit(lua_State* L)
     const auto it = app->state->events.find(event);
     if (it != app->state->events.end())
     {
-        // copy the refs so a handler may register more handlers without invalidating the loop
+        // Copy the refs so a handler may register more handlers without invalidating the loop.
         const std::vector<int> handlers = it->second;
         for (int ref : handlers)
         {
@@ -3365,7 +3367,7 @@ int HttpApp::luaConfig(lua_State* L)
     lua_rawgeti(L, LUA_REGISTRYINDEX, app->state->configRef);
     const int config = lua_gettop(L);
 
-    // app:config(table) merges the given values into the config
+    // Merges the given values into the app config.
     if (argc >= 2 && lua_istable(L, 2))
     {
         lua_pushnil(L);
@@ -3381,7 +3383,7 @@ int HttpApp::luaConfig(lua_State* L)
         return 1;
     }
 
-    // app:config(key, value) sets a single entry
+    // Sets a single entry of the app config.
     if (argc >= 3)
     {
         const std::string key = LuaHelpers::checkString(L, 2);
@@ -3391,7 +3393,7 @@ int HttpApp::luaConfig(lua_State* L)
         return 1;
     }
 
-    // app:config(key) reads a single entry
+    // Reads a single entry of the app config.
     if (argc == 2)
     {
         const std::string key = LuaHelpers::checkString(L, 2);
@@ -3399,7 +3401,7 @@ int HttpApp::luaConfig(lua_State* L)
         return 1;
     }
 
-    // app:config() returns the whole config table
+    // Returns the whole app config table.
     return 1;
 }
 
@@ -3422,7 +3424,7 @@ int HttpApp::luaAppListen(lua_State* L)
         options = HttpServerModule::readListenOptions(L, 3);
     }
 
-    // the app owns static serving so routes always take precedence over files
+    // The app owns static serving so routes always take precedence over files.
     if (options.servePublic)
     {
         state->staticFiles = std::make_unique<StaticFileHandler>(options.publicDir, options.directoryListing);
@@ -3434,7 +3436,7 @@ int HttpApp::luaAppListen(lua_State* L)
     // clang-format off
     auto handler = [state](HttpRequest request, std::shared_ptr<HttpResponse> response)
     {
-        // contain a native exception from the dispatcher here and answer 500, since it would otherwise unwind out of the event loop and abort the whole process
+        // Contain a native exception from the dispatcher here and answer 500, since it would otherwise unwind out of the event loop and abort the whole process.
         try
         {
             runDispatch(state, request, response);
@@ -3457,7 +3459,7 @@ int HttpApp::luaAppListen(lua_State* L)
     const std::string host = options.host;
     const int port = options.port;
 
-    // remember the transport scheme so cookies and hsts can be hardened under tls
+    // Remember the transport scheme so cookies and hsts can be hardened under tls.
     state->tls = tls;
 
     // clang-format off
@@ -3475,7 +3477,7 @@ int HttpApp::luaAppListen(lua_State* L)
     started << "Listening on " << (tls ? "https" : "http") << "://" << host << ":" << port << ".";
     log::Log::line("HttpApp", started.str());
 
-    // the refs are copied so an onStart hook may register more without invalidating the loop
+    // The refs are copied so an onStart hook may register more without invalidating the loop.
     const std::vector<int> startHooks = state->startHooks;
     for (int ref : startHooks)
     {

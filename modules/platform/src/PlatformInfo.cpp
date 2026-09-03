@@ -150,7 +150,7 @@ std::string PlatformInfo::libraryFilenameForName(std::string_view logicalName)
     std::string s(logicalName);
     const std::string os = osId();
 
-    // on windows keep an explicit extension and otherwise force a lowercase .dll
+    // On windows keep an explicit extension and otherwise force a lowercase .dll.
     if (os == "windows")
     {
         if (s.find('.') != std::string::npos)
@@ -161,7 +161,7 @@ std::string PlatformInfo::libraryFilenameForName(std::string_view logicalName)
         return toLower(std::move(s)) + ".dll";
     }
 
-    // reduce the name to its bare stem before applying the platform prefix and suffix
+    // Reduce the name to its bare stem before applying the platform prefix and suffix.
     std::string stem = s;
     if (startsWith(stem, "lib"))
     {

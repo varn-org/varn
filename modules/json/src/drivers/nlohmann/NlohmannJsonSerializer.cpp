@@ -32,7 +32,7 @@ void JsonSerializer::appendValue(lua_State* L, int index, std::string& out, int 
             return;
         }
 
-        // emits null for nan or infinity which json cannot represent
+        // Emits null for nan or infinity which json cannot represent.
         {
             const double number = lua_tonumber(L, index);
             out += std::isfinite(number) ? nlohmann::json(number).dump() : std::string("null");
@@ -47,7 +47,7 @@ void JsonSerializer::appendValue(lua_State* L, int index, std::string& out, int 
         return;
     case LUA_TTABLE:
     {
-        // caps recursion depth to guard against stack overflow
+        // Caps recursion depth to guard against stack overflow.
         constexpr int maxDepth = 256;
         if (depth >= maxDepth)
         {
@@ -55,7 +55,7 @@ void JsonSerializer::appendValue(lua_State* L, int index, std::string& out, int 
             return;
         }
 
-        // reserves stack room for the key and value at this nesting level
+        // Reserves stack room for the key and value at this nesting level.
         if (lua_checkstack(L, 4) == 0)
         {
             out += JsonConvert::dumpString("[too deep]");
@@ -87,7 +87,7 @@ void JsonSerializer::appendValue(lua_State* L, int index, std::string& out, int 
         lua_pushnil(L);
         while (lua_next(L, index) != 0)
         {
-            // coerces a copy of the key so lua_next still sees the original
+            // Coerces a copy of the key so lua_next still sees the original.
             lua_pushvalue(L, -2);
             std::size_t keyLength = 0;
             const char* raw = lua_tolstring(L, -1, &keyLength);
@@ -117,7 +117,7 @@ void JsonSerializer::appendValue(lua_State* L, int index, std::string& out, int 
     }
 }
 
-// every lua value is valid json, so a string or a number crosses the bridge as itself rather than as an empty object
+// Every lua value is valid json, so a string or a number crosses the bridge as itself rather than as an empty object.
 std::string JsonSerializer::serialize(lua_State* L, int index)
 {
     return encode(L, index, 0);
@@ -134,7 +134,7 @@ std::string JsonSerializer::encode(lua_State* L, int index, int indent)
         return compact;
     }
 
-    // reparses the compact form to pretty-print while preserving value types
+    // Reparses the compact form to pretty-print while preserving value types.
     nlohmann::json parsed = nlohmann::json::parse(compact, nullptr, false);
     if (parsed.is_discarded())
     {
@@ -146,7 +146,7 @@ std::string JsonSerializer::encode(lua_State* L, int index, int indent)
 
 bool JsonSerializer::deserialize(lua_State* L, const std::string& text)
 {
-    // rejects deeply nested input before the recursive parser can overflow the stack
+    // Rejects deeply nested input before the recursive parser can overflow the stack.
     constexpr int maxParseDepth = 200;
     int depth = 0;
     bool inString = false;
