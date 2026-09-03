@@ -23,7 +23,7 @@ This calls arbitrary native code by design. Treat declarations and inputs as tru
 
 ## Examples
 
-### `buffer.lua`
+### Buffer
 
 ```lua
 -- Allocates a c buffer, copies bytes in, casts it, and reads it back via ffi.string.
@@ -38,7 +38,7 @@ print("ffi buffer text:", ffi.string(ptr))
 print("ffi buffer prefix:", ffi.string(buf, 3))
 ```
 
-### `convert.lua`
+### Convert
 
 ```lua
 -- Fills a buffer, converts a cdata number to lua, takes a pointer address, reads errno, registers a gc finalizer, and prints the backend version.
@@ -66,7 +66,7 @@ print("ffi convert version:", ffi.VERSION)
 print("ffi convert ok")
 ```
 
-### `puts.lua`
+### Puts
 
 ```lua
 -- Calls libc puts through the native ffi stack.
@@ -79,7 +79,7 @@ ffi.cdef [[
 ffi.C.puts("ffi: hello from libc puts")
 ```
 
-### `sqlite3.lua`
+### SQLite
 
 ```lua
 -- Runs sqlite create and select through native ffi bindings with the library name resolved by platform.libraryFilename.
@@ -271,7 +271,7 @@ must(S.sqlite3_close(db), "close")
 print("ffi sqlite3: ok")
 ```
 
-### `struct.lua`
+### Struct
 
 ```lua
 -- Declares a c struct, attaches methods with metatype, and inspects its layout with typeof, sizeof, offsetof, and istype.

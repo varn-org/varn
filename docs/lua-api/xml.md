@@ -21,7 +21,7 @@ Element names are sanitized and text is escaped on encode. The parser does not l
 
 ## Examples
 
-### `aliases.lua`
+### Aliases
 
 ```lua
 -- Parse and stringify are aliases of decode and encode.
@@ -33,7 +33,7 @@ print(node.name, node.attributes.id, node.children[1].text)
 print(xml.stringify({ name = "ok", text = "done" }))
 ```
 
-### `encode_decode.lua`
+### Encode and decode
 
 ```lua
 -- Build a document from the node model and parse it back.
@@ -55,7 +55,7 @@ local node = xml.decode(doc)
 print(node.name, node.children[1].attributes.id, node.children[1].children[1].text)
 ```
 
-### `escaping.lua`
+### Escaping
 
 ```lua
 -- Text and attribute specials are escaped and invalid names are sanitized.
@@ -72,7 +72,7 @@ local back = xml.decode(xml.encode({ name = "n", text = "a < b & c" }))
 print(back.text)
 ```
 
-### `indent.lua`
+### Indent
 
 ```lua
 -- Indent sets the indentation width in spaces.
@@ -82,7 +82,7 @@ local node = { name = "root", children = { { name = "item", text = "value" } } }
 print(xml.encode(node, { indent = 4 }))
 ```
 
-### `roundtrip.lua`
+### Roundtrip
 
 ```lua
 -- Parse a document, walk its nodes, and re-encode it.

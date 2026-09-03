@@ -19,8 +19,7 @@ log.info("request done", { method = "GET", status = 200, ms = 12 })
 | `log.setLevel(level)` | Set the runtime minimum level (`"debug"`, `"info"`, `"warn"`, `"error"`). Lower lines are dropped, an unknown level raises. |
 | `log.toFile(path[, rotating])` | Add a file sink alongside stdout. `rotating` truthy rotates at 5 MB keeping 5 files, otherwise appends. |
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/log.md](../../docs/lua-api/log.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

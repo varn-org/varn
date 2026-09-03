@@ -6,7 +6,7 @@
 
 ```bash
 python3 varn.py build
-./build/bin/varn modules/http/lua/examples/server_demo.lua
+./build/bin/varn apps/lua/server.lua
 ```
 
 Then open <http://localhost:3000>.

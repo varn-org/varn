@@ -44,7 +44,8 @@ final class LuaRunner {
 
         // the console fills as the chunk prints rather than after it finishes, which matters for a sample that waits on the network
         var captured = ""
-        runtime.register("emit") { line in
+        runtime.register("emit") { argument in
+            let line = Self.decodeLine(argument)
             let isError = line.hasPrefix("error: ")
             captured += line + "\n"
             DispatchQueue.main.async { onLine(line, isError) }
@@ -69,6 +70,21 @@ final class LuaRunner {
             output: captured,
             failed: code != 0 || captured.hasPrefix("error: ") || captured.contains("\nerror: ")
         )
+    }
+
+    /// Turns the JSON the engine hands a host function back into the line the script printed.
+    ///
+    /// Everything crossing the bridge is JSON, so a printed line arrives quoted and with its tabs and
+    /// newlines escaped. A value that is not a JSON string is a bug in the harness rather than output,
+    /// so it is shown as it arrived instead of being hidden.
+    private static func decodeLine(_ argument: String) -> String {
+        guard let data = argument.data(using: .utf8),
+              let line = try? JSONDecoder().decode(String.self, from: data)
+        else {
+            return argument
+        }
+
+        return line
     }
 
     // asks the engine to unwind the running chunk, which is how a long loop is cut short

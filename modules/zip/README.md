@@ -19,8 +19,7 @@ end)
 | `zip.extract(archivePath, destDir)` | Extract under `destDir`, rejecting unsafe entry paths (zip slip) and bounding total size and entry count (zip bomb). |
 | `zip.list(archivePath)` | Resolve to an array of the archive's entry names. |
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/zip.md](../../docs/lua-api/zip.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

@@ -34,7 +34,7 @@ log.toFile("varn.log", true)    -- rotate at 5 MB, keep 5 files
 
 ## Examples
 
-### `config.lua`
+### Config
 
 ```lua
 -- Configures the logger level adds a file sink and logs structured fields.
@@ -57,7 +57,7 @@ log.error("request failed", { path = "/order", status = 500 })
 print("log config example emitted (see varn.log)")
 ```
 
-### `debug.lua`
+### Debug
 
 ```lua
 -- Emits a single line at the debug level.
@@ -67,7 +67,7 @@ log.debug("debug example", "value", 1)
 print("log debug example ok")
 ```
 
-### `error.lua`
+### Error
 
 ```lua
 -- Emits a single line at the error level.
@@ -77,7 +77,7 @@ log.error("error example", "value", 4)
 print("log error example ok")
 ```
 
-### `info.lua`
+### Info
 
 ```lua
 -- Emits a single line at the info level.
@@ -87,7 +87,7 @@ log.info("info example", "value", 2)
 print("log info example ok")
 ```
 
-### `levels.lua`
+### Levels
 
 ```lua
 -- Prints one line at each severity level.
@@ -100,7 +100,7 @@ log.error("error", "line", 4)
 print("log levels emitted (check sink: spdlog/stdout/dummy per build)")
 ```
 
-### `set_level.lua`
+### Setting the level
 
 ```lua
 -- Raises the minimum level so lines below the floor are dropped.
@@ -112,7 +112,7 @@ log.warn("kept")
 print("log set_level example ok")
 ```
 
-### `structured.lua`
+### Structured
 
 ```lua
 -- A trailing table is appended as space-separated key=value fields.
@@ -122,7 +122,7 @@ log.info("request done", { method = "GET", status = 200, ms = 12 })
 print("log structured example ok")
 ```
 
-### `to_file_rotating.lua`
+### Rotating file sink
 
 ```lua
 -- Adds a rotating file sink that rolls at 5 MB keeping 5 files.
@@ -133,7 +133,7 @@ log.info("rotating sink configured")
 print("log to_file_rotating example ok")
 ```
 
-### `warn.lua`
+### Warn
 
 ```lua
 -- Emits a single line at the warn level.

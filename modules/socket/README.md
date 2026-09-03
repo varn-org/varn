@@ -31,8 +31,7 @@ On a TLS socket the reads, writes and the handshake are serialized per connectio
 
 Native on every desktop and mobile platform. Sockets need raw TCP/TLS/UDP and the ability to host a listener, which a browser page cannot do, so the module is **native-only** — unavailable in the browser (wasm). See the [platform matrix](../../docs/platform-availability.md).
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/socket.md](../../docs/lua-api/socket.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

@@ -32,8 +32,7 @@ print(datetime.parse("2026-06-21T09:30:00-03:00"):iso())
 
 Instants compare with the standard operators (`==`, `<`, `<=`, `>`, `>=`) and `tostring(dt)` returns `dt:iso()`.
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/datetime.md](../../docs/lua-api/datetime.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

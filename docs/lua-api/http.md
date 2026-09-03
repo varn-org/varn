@@ -137,7 +137,7 @@ print(http.urlDecode(q))                         -- "hello world & more"
 
 ## Examples
 
-### `app_full.lua`
+### The full app tour
 
 ```lua
 -- Full tour of the http app framework covering routing, groups, middleware, params, constraints, named routes, cookies, sessions, body parsing, uploads, downloads and static files.
@@ -359,7 +359,7 @@ app:listen({
 })
 ```
 
-### `app_roundtrip.lua`
+### App round trip
 
 ```lua
 -- Drives an in-process app with the client to show routing, body parsing and a json response then exits, with the server on its own threads so the script issues its requests inside async.run and finishes cleanly.
@@ -404,7 +404,7 @@ async.run(function()
 end)
 ```
 
-### `cache_negotiation.lua`
+### Cache negotiation
 
 ```lua
 -- Caching and content negotiation covering cache-control, etag revalidation, and api-vs-html responses from one route.
@@ -447,7 +447,7 @@ app:listen({
 })
 ```
 
-### `client_ergonomic.lua`
+### The ergonomic client
 
 ```lua
 -- The ergonomic http client where get/post return a parsed response with status, ok, headers, body and json().
@@ -469,7 +469,7 @@ async.run(function()
 end)
 ```
 
-### `client_request.lua`
+### A client request
 
 ```lua
 local async = require("async")
@@ -491,7 +491,7 @@ async.spawn(function()
 end)
 ```
 
-### `create_server_transport.lua`
+### Server transport options
 
 ```lua
 -- Creates an HTTP server and binds it to a local port using explicit transport options.
@@ -506,7 +506,7 @@ end):listen({ host = "127.0.0.1", port = port })
 print("http server listening on http://127.0.0.1:" .. port)
 ```
 
-### `https_json_server.lua`
+### HTTPS JSON server
 
 ```lua
 -- Serves json over tls using files in the working directory or varn tls env variables.
@@ -532,7 +532,7 @@ server:listen({
 })
 ```
 
-### `integration_modules.lua`
+### Integrating the other modules
 
 ```lua
 -- Combines async file reads hashing and static responses on one host from the repo root.
@@ -578,7 +578,7 @@ end
 http.createServer(route):listen(tonumber(os.getenv("VARN_PORT") or "3000"))
 ```
 
-### `json_server.lua`
+### JSON server
 
 ```lua
 -- Serves small json payloads plus static files from the public tree.
@@ -604,7 +604,7 @@ server:listen({
 })
 ```
 
-### `jwt_demo.lua`
+### JWT
 
 ```lua
 -- Demonstrates issuing and verifying json web tokens without a server, then exits cleanly.
@@ -626,7 +626,7 @@ local forged, forgedErr = http.jwt.verify(token, "not-the-secret")
 print("wrong secret rejected: " .. tostring(forged == nil) .. " (" .. tostring(forgedErr) .. ")")
 ```
 
-### `server_demo.lua`
+### Server demo
 
 ```lua
 -- Shows hello echo and hashed file routes in one process.
@@ -685,7 +685,7 @@ server:listen({
 })
 ```
 
-### `sse_server.lua`
+### Server-sent events
 
 ```lua
 -- Server-sent events plus gzip with a live clock stream and a large json endpoint the server compresses automatically.
@@ -736,7 +736,7 @@ app:listen({
 })
 ```
 
-### `url_encode.lua`
+### URL encoding
 
 ```lua
 -- Percent-encodes a value for a query string and decodes it back, available in every build including the browser.
@@ -753,7 +753,7 @@ assert(decoded == "hello world & more", "round-trip mismatch")
 print("http url encode ok")
 ```
 
-### `ws_chat.lua`
+### WebSocket chat
 
 ```lua
 -- Websocket chat with rooms where each client joins a room and messages fan out to that room's members.
@@ -815,7 +815,7 @@ app:listen({
 })
 ```
 
-### `xml_server.lua`
+### XML server
 
 ```lua
 -- Serves small xml payloads plus static files from the public tree.

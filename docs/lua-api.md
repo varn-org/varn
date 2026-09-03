@@ -1,6 +1,6 @@
 # 📖 Lua API reference
 
-Every built-in module is available with `require`. Each module has its own page below, with its full API and every runnable example. The examples also live next to each module under `modules/<module>/lua/examples/` and run from the project root.
+Every built-in module is available with `require`. Each module has its own page below, carrying its full API and a runnable example of every capability.
 
 ## Modules
 

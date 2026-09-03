@@ -16,8 +16,7 @@ print(json.encode({ name = "varn" }))
 
 Type mapping: string, number (integer or float), boolean, and `nil` ↔ `null`. A sequence (contiguous `1..n` keys) ↔ a JSON array. Any other table ↔ a JSON object. Non-finite numbers (`NaN`/`Infinity`) encode as `null`, invalid UTF-8 is replaced rather than throwing, and decoding rejects deeply nested input and malformed text.
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/json.md](../../docs/lua-api/json.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

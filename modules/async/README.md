@@ -29,8 +29,7 @@ end)
 | `promise:await()` | Pause the current coroutine until the promise settles, then return the value (or `nil, err` on failure). |
 | `promise:isDone()` | A boolean hint about whether the promise has settled. Not a synchronization primitive. |
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/async.md](../../docs/lua-api/async.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

@@ -16,8 +16,7 @@ print(xml.encode({ name = "tag", text = "varn" }))
 
 The node model round-trips losslessly: `name` (element name), `attributes` (present only when the element has attributes), `children` (child elements in document order), and `text` (concatenated direct text). Element names are sanitized and text is escaped on encode. The parser does not load external entities or expand DTD entities, and node conversion is depth-capped.
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/xml.md](../../docs/lua-api/xml.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

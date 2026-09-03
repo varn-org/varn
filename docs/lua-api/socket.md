@@ -39,7 +39,7 @@ Async TCP, TLS, UDP, and unix-domain sockets. Every operation returns a promise.
 
 ## Examples
 
-### `close_pending.lua`
+### Closing a pending operation
 
 ```lua
 -- Closing a socket releases a pending receive and a pending accept.
@@ -76,7 +76,7 @@ async.run(function()
 end)
 ```
 
-### `echo_server.lua`
+### Echo server
 
 ```lua
 -- Echo service with an overridable listen port through the environment.
@@ -126,7 +126,7 @@ async.spawn(function()
 end)
 ```
 
-### `tcp_roundtrip.lua`
+### TCP round trip
 
 ```lua
 -- An in-process tcp server echoes one message back to a client and both shut down.
@@ -158,7 +158,7 @@ async.run(function()
 end)
 ```
 
-### `tls_client.lua`
+### TLS client
 
 ```lua
 -- Opens a verified tls connection and speaks a minimal http request over it.
@@ -192,7 +192,7 @@ async.run(function()
 end)
 ```
 
-### `udp_echo.lua`
+### UDP echo
 
 ```lua
 -- Udp echo service with an overridable bind address through the environment.
@@ -225,7 +225,7 @@ async.spawn(function()
 end)
 ```
 
-### `udp_roundtrip.lua`
+### UDP round trip
 
 ```lua
 -- An in-process udp server echoes one datagram back and both sockets close.
@@ -256,7 +256,7 @@ async.run(function()
 end)
 ```
 
-### `unix_roundtrip.lua`
+### Unix socket round trip
 
 ```lua
 -- An in-process unix-domain server echoes one message back to a client and both shut down.

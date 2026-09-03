@@ -32,8 +32,7 @@ end)
 | `fs.removeRecursive(path)` | Promise resolving to `"ok"`. Removes a file or a directory tree. |
 | `fs.mkdtemp(prefix)` | Promise resolving to the path of a freshly created unique temporary directory whose name starts with `prefix`. |
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/fs.md](../../docs/lua-api/fs.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

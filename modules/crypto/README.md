@@ -32,8 +32,7 @@ print(crypto.digest("SHA256", "varn"))
 
 Native on every desktop and mobile platform. In the browser (wasm) the **essential subset** is available — `digest`, `hmac`, `randomBytes`, `equals`, the base64/hex codecs, and the UUIDs — while `encrypt`/`decrypt`, `hashPassword`/`verifyPassword`, `pbkdf2`, `hkdf`, and `rsaEncryptPublic` are native-only. See the [platform matrix](../../docs/platform-availability.md).
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/crypto.md](../../docs/lua-api/crypto.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

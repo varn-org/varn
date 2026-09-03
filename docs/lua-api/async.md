@@ -47,7 +47,7 @@ See also the design notes in [../async.md](../async.md).
 
 ## Examples
 
-### `allsettled.lua`
+### All settled
 
 ```lua
 -- Collects per-input outcomes with async.allSettled, which never rejects.
@@ -75,7 +75,7 @@ async.run(function()
 end)
 ```
 
-### `any.lua`
+### Any
 
 ```lua
 -- Resolves with the first input to succeed with async.any, ignoring earlier rejections.
@@ -102,7 +102,7 @@ async.run(function()
 end)
 ```
 
-### `await.lua`
+### Await
 
 ```lua
 -- Awaits several sleeps in sequence and prints the order they complete in.
@@ -118,7 +118,7 @@ async.spawn(function()
 end)
 ```
 
-### `combinators.lua`
+### Combinators
 
 ```lua
 -- Fetches several things in parallel with async.all and prints the combined result in order.
@@ -152,7 +152,7 @@ async.run(function()
 end)
 ```
 
-### `deferred.lua`
+### Deferred
 
 ```lua
 -- Creates a promise resolved from elsewhere with async.deferred, which returns a promise and a one-shot resolve function.
@@ -174,7 +174,7 @@ async.run(function()
 end)
 ```
 
-### `error.lua`
+### Error
 
 ```lua
 -- An error raised inside an awaited operation propagates and is catchable with pcall.
@@ -190,7 +190,7 @@ async.spawn(function()
 end)
 ```
 
-### `maplimit.lua`
+### Map with a concurrency limit
 
 ```lua
 -- Maps a list with at most limit promises in flight with async.mapLimit, preserving order.
@@ -208,7 +208,7 @@ async.run(function()
 end)
 ```
 
-### `promise_isdone.lua`
+### Checking whether a promise settled
 
 ```lua
 local async = require("async")
@@ -222,7 +222,7 @@ async.spawn(function()
 end)
 ```
 
-### `sleep.lua`
+### Sleep
 
 ```lua
 local async = require("async")
@@ -235,7 +235,7 @@ async.spawn(function()
 end)
 ```
 
-### `spawn.lua`
+### Spawn
 
 ```lua
 local async = require("async")
@@ -254,7 +254,7 @@ async.spawn(function()
 end)
 ```
 
-### `timeout.lua`
+### Timeout
 
 ```lua
 -- Bounds how long to wait on a promise with async.timeout.

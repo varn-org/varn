@@ -40,7 +40,7 @@ Instants compare with the standard operators (`==`, `<`, `<=`, `>`, `>=`), so th
 
 ## Examples
 
-### `arithmetic.lua`
+### Arithmetic
 
 ```lua
 -- Shifts instants by mixed units and measures gaps in several units.
@@ -72,7 +72,7 @@ assert(t:startOf("second"):iso() == "2026-06-21T12:34:56Z", "start of second dro
 print("datetime arithmetic ok")
 ```
 
-### `basic.lua`
+### Basic
 
 ```lua
 -- Parsing, calendar arithmetic, diffs, and fixed-offset rendering.
@@ -106,7 +106,7 @@ assert(b < a)
 print("earliest:", datetime.min(a, b):iso())
 ```
 
-### `constructors.lua`
+### Constructors
 
 ```lua
 -- Builds the same instant from unix seconds, millis, and a fields table.
@@ -136,7 +136,7 @@ assert(datetime.now() > datetime.fromUnix(0), "now is after the epoch")
 print("datetime constructors ok")
 ```
 
-### `fields.lua`
+### Fields
 
 ```lua
 -- Reads scalar fields and renders them with a strftime-style format.

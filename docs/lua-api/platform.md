@@ -22,7 +22,7 @@ Host and build information.
 
 ## Examples
 
-### `byte_layout.lua`
+### Byte layout
 
 ```lua
 -- Prints the pointer size and byte order of the host build.
@@ -36,7 +36,7 @@ assert(p.endianness() == "little" or p.endianness() == "big", "endianness")
 print("platform byte layout ok")
 ```
 
-### `cpu_count.lua`
+### CPU count
 
 ```lua
 -- Prints the number of cpus reported for the host.
@@ -49,7 +49,7 @@ assert(type(cpus) == "number" and cpus >= 1, "cpuCount should be at least one")
 print("platform cpu count ok")
 ```
 
-### `host_version.lua`
+### Host version
 
 ```lua
 -- Prints semver baked in at configure time for the host binary.
@@ -61,7 +61,7 @@ assert(type(v) == "string" and #v > 0, "hostVersion")
 assert(v:match("^%d+%.%d+%.%d+"), "expected semver x.y.z")
 ```
 
-### `info.lua`
+### Info
 
 ```lua
 -- Prints host identifiers, system data, and shared library naming hints.
@@ -85,7 +85,7 @@ assert(p.endianness() == "little" or p.endianness() == "big", "endianness")
 print("platform info ok")
 ```
 
-### `lib_naming.lua`
+### Library naming
 
 ```lua
 -- Prints the shared library prefix and suffix pieces for the host.
@@ -101,7 +101,7 @@ assert(type(suffix) == "string" and #suffix > 0, "shlibSuffix")
 print("platform lib naming ok")
 ```
 
-### `library_paths.lua`
+### Library paths
 
 ```lua
 -- Builds example filenames for a short logical library name.
@@ -118,7 +118,7 @@ assert(fn:match("%."), "expected extension in filename")
 print("platform library path helpers ok")
 ```
 
-### `system_identity.lua`
+### System identity
 
 ```lua
 -- Prints the host operating system and cpu architecture identifiers.

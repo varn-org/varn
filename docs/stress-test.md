@@ -57,7 +57,7 @@ Build Varn and run one of the HTTP examples. `server_demo.lua` exposes a few rou
 
 ```bash
 python3 varn.py build
-VARN_PORT=3000 ./build/bin/varn modules/http/lua/examples/server_demo.lua
+VARN_PORT=3000 ./build/bin/varn apps/lua/server.lua
 ```
 
 It listens on `http://localhost:3000` with these routes:

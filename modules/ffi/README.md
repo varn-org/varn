@@ -38,8 +38,7 @@ This calls arbitrary native code by design. Treat declarations and inputs as tru
 
 `ffi` calls native libraries through libffi and is native on every desktop and mobile platform. In the browser (wasm) it is unavailable — wasm has no native calling convention to target — so the module still loads but its calls return a clear error. See the [platform matrix](../../docs/platform-availability.md).
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/ffi.md](../../docs/lua-api/ffi.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

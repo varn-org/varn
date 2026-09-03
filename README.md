@@ -34,7 +34,7 @@ The plain archives are there too when you would rather drop the binary somewhere
 
 ```bash
 python3 varn.py build
-./build/bin/varn modules/http/lua/examples/server_demo.lua
+./build/bin/varn apps/lua/server.lua
 ```
 
 Then open <http://localhost:3000>.
@@ -51,7 +51,7 @@ end)
 server:listen(3000)
 ```
 
-Every feature ships with runnable examples under `modules/<module>/lua/examples/`.
+Every feature is shown with a runnable example inside its reference page under [docs/lua-api/](docs/lua-api.md).
 
 ## ✨ Features
 

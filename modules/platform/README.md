@@ -23,8 +23,7 @@ print(platform.os(), platform.arch())
 | `platform.libraryFilename(name)` | The full shared-library filename for a logical name, e.g. `libz.so` for `"z"`. |
 | `platform.getLibraryPathByName(name, subdir?)` | Builds `subdir/filename` for a logical name — a dev helper. |
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/platform.md](../../docs/lua-api/platform.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

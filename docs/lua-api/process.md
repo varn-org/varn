@@ -23,7 +23,7 @@ Commands are not sandboxed. Confine untrusted input before passing it here. A co
 
 ## Examples
 
-### `exec_and_env.lua`
+### Exec and the environment
 
 ```lua
 -- Runs a command and prints its capture, environment, and working directory.
@@ -47,7 +47,7 @@ async.run(function()
 end)
 ```
 
-### `exec_status_and_argv.lua`
+### Exit status and argv
 
 ```lua
 -- Runs a successful and a failing command and prints env, cwd, and argv.

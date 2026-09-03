@@ -26,8 +26,7 @@ end)
 
 Commands run via `fork`/`exec` (POSIX) or `CreateProcess` (Windows). Among Apple platforms only macOS permits that, so iOS, tvOS, watchOS, and visionOS use the stub. The browser (wasm) has no process model at all. On those targets `process.available` is `false` and `process.exec` rejects with "not available in this build". See the [platform matrix](../../docs/platform-availability.md).
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/process.md](../../docs/lua-api/process.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

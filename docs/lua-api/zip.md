@@ -8,7 +8,7 @@ Create, extract, and list ZIP archives. All three return promises.
 
 ## Examples
 
-### `create_extract_roundtrip.lua`
+### Create and extract round trip
 
 ```lua
 -- Creates a small archive and extracts it, verifying the entry round-trips.
@@ -47,7 +47,7 @@ async.run(function()
 end)
 ```
 
-### `list_entries.lua`
+### Listing entries
 
 ```lua
 -- Writes a tiny archive and lists its member names.
@@ -84,7 +84,7 @@ async.run(function()
 end)
 ```
 
-### `multi_entry_create.lua`
+### Creating a multi-entry archive
 
 ```lua
 -- Creates an archive holding several entries including a nested path, and lists them back.

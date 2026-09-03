@@ -22,7 +22,7 @@ Paths are not sandboxed. Confine untrusted input before passing it here. A path 
 
 ## Examples
 
-### `open_handle.lua`
+### Streaming handle
 
 ```lua
 -- Streams a file through an open handle writing in chunks and reading them back.
@@ -57,7 +57,7 @@ async.run(function()
 end)
 ```
 
-### `overwrite.lua`
+### Overwrite
 
 ```lua
 -- Writes a file twice and reads back the replaced content.
@@ -81,14 +81,14 @@ async.run(function()
 end)
 ```
 
-### `read_write_exists.lua`
+### Read, write and exists
 
 ```lua
 -- Writes, reads, and probes existence on a path under the repository tree.
 local async = require("async")
 local fs = require("fs")
 
-local marker = "modules/fs/lua/examples/read_write_exists.lua"
+local marker = "README.md"
 
 async.spawn(function()
     assert(fs.exists(marker), "run from repo root (missing " .. marker .. ")")
@@ -108,7 +108,7 @@ async.spawn(function()
 end)
 ```
 
-### `stat_readdir.lua`
+### Stat and readdir
 
 ```lua
 -- Demonstrates stat readdir append copy rename and mkdtemp under a temporary directory.

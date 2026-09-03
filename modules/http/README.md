@@ -37,8 +37,7 @@ end):listen(3000)
 
 The **server** and **WebSockets** are native-only on every desktop and mobile platform — a browser page cannot host a listener, so they are unavailable in wasm. The **client** works everywhere, including the browser, where it runs over the host's `fetch`. The **URL encode/decode** helpers work in every build, browser included. See the [platform matrix](../../docs/platform-availability.md).
 
-## Reference, examples, and tests
+## Reference and tests
 
 - Full reference: [docs/lua-api/http.md](../../docs/lua-api/http.md)
-- Runnable examples: [lua/examples/](lua/examples/)
 - Tests run in CI on Linux, macOS, and Windows: [lua/tests/](lua/tests/)

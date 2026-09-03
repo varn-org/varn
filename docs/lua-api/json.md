@@ -10,7 +10,7 @@ Type mapping: string, number (integer or float), boolean, `nil` ↔ `null`, a se
 
 ## Examples
 
-### `aliases.lua`
+### Aliases
 
 ```lua
 -- Shows stringify and parse as aliases of encode and decode.
@@ -23,7 +23,7 @@ local value = json.parse(text)
 print(value.id, value.active)
 ```
 
-### `decode_error.lua`
+### Decode error
 
 ```lua
 -- Guards decode with pcall since invalid input raises.
@@ -36,7 +36,7 @@ local value = json.decode('{"valid":true}')
 print(value.valid)
 ```
 
-### `encode_decode.lua`
+### Encode and decode
 
 ```lua
 -- Encodes a lua value to text and decodes it back.
@@ -49,7 +49,7 @@ local value = json.decode(text)
 print(value.name, value.version, value.tags[1], value.tags[2])
 ```
 
-### `non_finite.lua`
+### Non-finite numbers
 
 ```lua
 -- Encodes non-finite numbers as null instead of throwing.
@@ -62,7 +62,7 @@ print(json.encode({ nan = 0 / 0, pos = 1 / 0, neg = -1 / 0 }))
 print(json.encode({ 1, 1 / 0, 2.5, 0 / 0 }))
 ```
 
-### `pretty.lua`
+### Pretty
 
 ```lua
 -- Pretty-prints with a default or explicit indent.
@@ -72,7 +72,7 @@ print(json.encode({ user = { id = 1, roles = { "admin", "user" } } }, { pretty =
 print(json.encode({ a = 1, b = 2 }, { indent = 4 }))
 ```
 
-### `types.lua`
+### Types
 
 ```lua
 -- Converts types between lua and json in both directions.

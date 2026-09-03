@@ -44,7 +44,7 @@ There is no artificial input-size limit — Varn runs your own code on your own 
 
 ## Examples
 
-### `crypto_extra.lua`
+### Further primitives
 
 ```lua
 -- Demonstrates the codec, uuid, password, encryption, and key derivation helpers.
@@ -85,7 +85,7 @@ print("hkdf key bytes:  ", #sub)
 print("crypto extra example ok")
 ```
 
-### `digest_raw.lua`
+### Raw digest
 
 ```lua
 -- Checks the raw digest length for a fixed input string.
@@ -96,7 +96,7 @@ assert(#raw == 32, "raw sha256 length")
 print("crypto.digest raw ok, len=", #raw)
 ```
 
-### `digest_sha256.lua`
+### SHA-256 digest
 
 ```lua
 -- Checks a short string against a known hex fingerprint.
@@ -108,7 +108,7 @@ assert(h:match("^[0-9a-f]+$"), "expected lowercase hex")
 print("crypto.digest SHA256 hex ok:", h:sub(1, 16), "...")
 ```
 
-### `digest_sha512.lua`
+### SHA-512 digest
 
 ```lua
 -- Hashes a string with SHA-512 and prints the start of the hex digest.
@@ -120,7 +120,7 @@ assert(#hex == 128, "sha512 hex length")
 print("crypto.digest SHA512 ok:", hex:sub(1, 16) .. "...")
 ```
 
-### `digest_vectors.lua`
+### Digest test vectors
 
 ```lua
 -- Verifies SHA-256 against known vectors for the empty and "abc" inputs.
@@ -134,7 +134,7 @@ assert(crypto.digest("SHA256", "abc", "hex")
 print("crypto.digest SHA256 vectors ok (empty, abc)")
 ```
 
-### `equals.lua`
+### Equals
 
 ```lua
 -- Constant-time comparison for verifying a mac or token without leaking its bytes through timing.
@@ -150,7 +150,7 @@ assert(not crypto.equals(mac, "tampered"), "a wrong token is rejected")
 print("crypto.equals ok")
 ```
 
-### `hmac_raw.lua`
+### Raw HMAC
 
 ```lua
 -- Produces a keyed hmac in raw binary form and checks its length.
@@ -162,7 +162,7 @@ assert(#raw == 32, "raw hmac sha256 length")
 print("crypto.hmac raw ok, len=", #raw)
 ```
 
-### `hmac_vectors.lua`
+### HMAC test vectors
 
 ```lua
 -- Verifies HMAC-SHA256 against RFC 4231 test case 1.
@@ -175,7 +175,7 @@ assert(mac == "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"
 print("crypto.hmac RFC 4231 vector ok")
 ```
 
-### `random_bytes.lua`
+### Random bytes
 
 ```lua
 -- Asserts only on the length fields returned for random byte requests.
@@ -188,7 +188,7 @@ assert(#b32 == 32, "length")
 print("crypto.randomBytes ok")
 ```
 
-### `random_bytes_cap.lua`
+### The random byte cap
 
 ```lua
 -- Shows randomBytes drawing a large requested size and rejecting a negative count.
