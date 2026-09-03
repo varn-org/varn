@@ -105,13 +105,15 @@ jobs:
       - name: Build
         working-directory: apps/ios
         run: |
+          # xcpretty exits zero on a failed build, so without pipefail the step reports success on a broken app
+          set -o pipefail
           xcodebuild build \
             -project Varn.xcodeproj \
             -scheme Varn \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO | xcpretty || exit ${PIPESTATUS[0]}
+            CODE_SIGNING_ALLOWED=NO | xcpretty
 
       - name: Verify the app bundle
         working-directory: apps/ios
