@@ -117,7 +117,32 @@ jobs:
         working-directory: apps/ios
         run: |
           APP=$(find build/Build/Products -name "Varn.app" -maxdepth 3 | head -1)
-          test -n "$APP"
-          test -d "$APP/Frameworks/varn.framework"
-          test -f "$APP/samples/manifest.json"
-          test "$(ls "$APP/samples/lua" | wc -l)" -eq "$(ls ../samples/lua | wc -l)"
+          if [ -z "$APP" ]; then
+            echo "no Varn.app under build/Build/Products"
+            find build/Build/Products -maxdepth 3 -name "*.app" -o -maxdepth 3 -type d | head -20
+            exit 1
+          fi
+
+          echo "bundle: $APP"
+          ls -1 "$APP"
+
+          if [ ! -d "$APP/Frameworks/varn.framework" ]; then
+            echo "the engine framework is missing from the bundle"
+            ls -1 "$APP/Frameworks" 2>/dev/null || echo "no Frameworks directory at all"
+            exit 1
+          fi
+
+          if [ ! -f "$APP/samples/manifest.json" ]; then
+            echo "the sample manifest is missing from the bundle"
+            ls -1 "$APP/samples" 2>/dev/null || echo "no samples directory at all"
+            exit 1
+          fi
+
+          BUNDLED=$(ls "$APP/samples/lua" | wc -l | tr -d ' ')
+          EXPECTED=$(ls ../samples/lua | wc -l | tr -d ' ')
+          if [ "$BUNDLED" != "$EXPECTED" ]; then
+            echo "the bundle carries $BUNDLED samples but the tree has $EXPECTED"
+            exit 1
+          fi
+
+          echo "the bundle carries the engine and all $BUNDLED samples"
