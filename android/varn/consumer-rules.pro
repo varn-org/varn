@@ -3,6 +3,7 @@
 
 -keep class com.varn.VarnRuntime { *; }
 -keep class com.varn.VarnRuntime$HostFunction { *; }
+-keep class com.varn.VarnRuntime$ConsoleSink { *; }
 
 -keep class com.varn.VarnHttp { *; }
 -keep class com.varn.VarnHttp$Response { *; }

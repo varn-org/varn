@@ -45,6 +45,11 @@ class VarnRuntime : AutoCloseable {
     fun loadString(source: String, chunkName: String = "=(embedded)"): Int =
         nativeLoadString(handle, source, chunkName)
 
+    /** Receives every line the engine writes, at the level it was written with. */
+    fun interface ConsoleSink {
+        fun onLine(level: Int, message: String)
+    }
+
     /** Advances the runtime once without blocking, answering true while something can still make progress. */
     fun poll(): Boolean = nativePoll(handle) == 1
 
@@ -63,6 +68,15 @@ class VarnRuntime : AutoCloseable {
         }
 
         fun version(): String = nativeVersion()
+
+        /**
+         * Mirrors every line the engine writes into [sink], which already reached logcat as well.
+         *
+         * Pass null to stop receiving. The sink is process wide, as the logger it mirrors is.
+         */
+        fun setConsole(sink: ConsoleSink?) = nativeSetConsole(sink)
+
+        @JvmStatic private external fun nativeSetConsole(sink: ConsoleSink?)
 
         @JvmStatic private external fun nativeNew(): Long
         @JvmStatic private external fun nativeRegister(handle: Long, name: String, function: HostFunction): Int

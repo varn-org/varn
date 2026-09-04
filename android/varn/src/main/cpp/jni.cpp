@@ -11,6 +11,12 @@
 namespace
 {
 
+// The console sink a host installed, held alive for as long as it is the one receiving lines.
+struct ConsoleBinding
+{
+    jobject callback = nullptr;
+};
+
 // one registered host function, holding the java callback alive for as long as its runtime is
 struct HostBinding
 {
@@ -123,6 +129,50 @@ public:
         }
 
         return result;
+    }
+
+    static ConsoleBinding*& consoleBinding()
+    {
+        static ConsoleBinding* binding = nullptr;
+        return binding;
+    }
+
+    // A line can be written from a pool thread, so the callback is reached through an attachment of its own.
+    static void deliverConsole(int level, const char* message, void*)
+    {
+        ConsoleBinding* binding = consoleBinding();
+        if (binding == nullptr)
+        {
+            return;
+        }
+
+        bool attached = false;
+        JNIEnv* current = env(attached);
+        if (current == nullptr)
+        {
+            return;
+        }
+
+        jclass type = current->GetObjectClass(binding->callback);
+        jmethodID method = current->GetMethodID(type, "onLine", "(ILjava/lang/String;)V");
+
+        jstring text = current->NewStringUTF(message != nullptr ? message : "");
+        current->CallVoidMethod(binding->callback, method, static_cast<jint>(level), text);
+        current->DeleteLocalRef(text);
+
+        // An exception raised by the sink would corrupt the next jni call, so it is cleared and reported.
+        if (current->ExceptionCheck() == JNI_TRUE)
+        {
+            current->ExceptionDescribe();
+            current->ExceptionClear();
+        }
+
+        current->DeleteLocalRef(type);
+
+        if (attached)
+        {
+            vmStorage()->DetachCurrentThread();
+        }
     }
 
     static void releaseBindings(jlong handle)
@@ -260,6 +310,31 @@ extern "C"
             env->ReleaseStringUTFChars(chunkName, nativeChunk);
         }
         return code;
+    }
+
+    JNIEXPORT void JNICALL Java_com_varn_VarnRuntime_nativeSetConsole(JNIEnv* env, jclass, jobject callback)
+    {
+        ConsoleBinding* previous = JniHelpers::consoleBinding();
+
+        if (callback == nullptr)
+        {
+            varn_set_console(nullptr, nullptr);
+            JniHelpers::consoleBinding() = nullptr;
+        }
+        else
+        {
+            auto* binding = new ConsoleBinding();
+            binding->callback = env->NewGlobalRef(callback);
+            JniHelpers::consoleBinding() = binding;
+            varn_set_console(&JniHelpers::deliverConsole, nullptr);
+        }
+
+        // The engine no longer reaches the old callback, so its global reference is given back.
+        if (previous != nullptr)
+        {
+            env->DeleteGlobalRef(previous->callback);
+            delete previous;
+        }
     }
 
     JNIEXPORT jint JNICALL Java_com_varn_VarnRuntime_nativeLoadString(JNIEnv* env, jclass, jlong handle, jstring source, jstring chunkName)
