@@ -2,15 +2,17 @@ package com.varn.app
 
 import com.varn.VarnRuntime
 import java.io.File
+import org.json.JSONTokener
 
 // what one run produced, with the output already separated from the failure that ended it
 data class RunOutcome(val output: String, val failed: Boolean)
 
 /**
- * Runs a Lua chunk on the embedded engine and collects what it printed.
+ * Runs a Lua chunk on the embedded engine and reports each line it prints as it is printed.
  *
- * The runtime the AAR exposes answers with an exit code and nothing else, so the chunk is wrapped in
- * a harness that replaces `print` with one writing to a file the app reads back afterwards.
+ * The runtime answers a run with an exit code and nothing else, so the chunk is wrapped in a harness
+ * that replaces `print` with one handing every line to the host, which is what lets the console fill
+ * while a sample that waits on the network is still running.
  */
 class LuaRunner(private val workDir: File) {
 
@@ -19,33 +21,49 @@ class LuaRunner(private val workDir: File) {
 
     fun version(): String = VarnRuntime.version()
 
-    fun run(source: String): RunOutcome {
+    fun run(source: String, onLine: (String, Boolean) -> Unit): RunOutcome {
         val scriptFile = File(workDir, "sample.lua")
-        val outputFile = File(workDir, "output.txt")
         val scratch = File(workDir, "scratch")
 
         scriptFile.writeText(source)
-        outputFile.writeText("")
         scratch.deleteRecursively()
         scratch.mkdirs()
 
         val runtime = VarnRuntime()
         current = runtime
 
+        val captured = StringBuilder()
+        runtime.register("emit") { argument ->
+            val line = decodeLine(argument)
+            captured.append(line).append('\n')
+            onLine(line, line.startsWith("error: "))
+            null
+        }
+
         val code = try {
-            runtime.runString(harness(scriptFile, outputFile, scratch), "=harness")
+            runtime.runString(harness(scriptFile, scratch), "=harness")
         } finally {
             current = null
             runtime.close()
         }
 
-        val captured = if (outputFile.exists()) outputFile.readText() else ""
-        // the harness reports a lua error through the output, so a non-zero code means the harness itself failed
+        val output = captured.toString()
+        // the harness reports a lua error as an output line, so a non-zero code means the harness itself failed
         return RunOutcome(
-            output = captured.ifEmpty { if (code == 0) "" else "engine exited with code $code\n" },
-            failed = code != 0 || captured.contains("\nerror: ") || captured.startsWith("error: "),
+            output = output.ifEmpty { if (code == 0) "" else "engine exited with code $code\n" },
+            failed = code != 0 || output.contains("\nerror: ") || output.startsWith("error: "),
         )
     }
+
+    /**
+     * Turns the JSON the engine hands a host function back into the line the script printed.
+     *
+     * Everything crossing the bridge is JSON, so a printed line arrives quoted and with its tabs and
+     * newlines escaped. A value that is not a JSON string is a bug in the harness rather than output,
+     * so it is shown as it arrived instead of being hidden.
+     */
+    private fun decodeLine(argument: String): String =
+        runCatching { JSONTokener(argument).nextValue() as? String }.getOrNull() ?: argument
 
     // asks the engine to unwind the running chunk, which is how a long loop is cut short
     fun stop() {
@@ -53,12 +71,13 @@ class LuaRunner(private val workDir: File) {
     }
 
     // the paths come from the app's own cache directory, so they carry nothing that could close the lua string
-    private fun harness(script: File, output: File, scratch: File): String = """
-        local out = assert(io.open([[${output.absolutePath}]], "w"))
+    private fun harness(script: File, scratch: File): String = """
+        local function emit(line)
+            host.emit(line)
+        end
 
         local function report(message)
-            out:write("error: ", tostring(message), "\n")
-            out:flush()
+            emit("error: " .. tostring(message))
         end
 
         print = function(...)
@@ -66,8 +85,7 @@ class LuaRunner(private val workDir: File) {
             for i = 1, select("#", ...) do
                 parts[i] = tostring((select(i, ...)))
             end
-            out:write(table.concat(parts, "\t"), "\n")
-            out:flush()
+            emit(table.concat(parts, "\t"))
         end
 
         -- a sandboxed app has no writable working directory, so the one place a sample may write is named here

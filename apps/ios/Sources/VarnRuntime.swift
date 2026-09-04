@@ -91,12 +91,19 @@ final class VarnRuntime {
 
     /// Keeps the event loop running, so the runtime waits for events instead of exiting once the script returns.
     func retain() {
-        handle.map { varn_runtime_retain($0) }
+        guard let handle else {
+            return
+        }
+        varn_runtime_retain(handle)
     }
 
-    /// Gives back one retain, letting the loop finish when nothing else holds it.
-    func release() {
-        handle.map { varn_runtime_release($0) }
+    /// Gives back one retain, answering false when there was none left to give.
+    @discardableResult
+    func release() -> Bool {
+        guard let handle else {
+            return false
+        }
+        return varn_runtime_release(handle) == 0
     }
 
     @discardableResult

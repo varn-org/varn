@@ -116,26 +116,21 @@ class MainActivity : AppCompatActivity() {
 
         thread(name = "varn-run") {
             val outcome = try {
-                runner.run(source)
+                // the console fills as the chunk prints rather than after it finishes, which matters for a sample that waits on the network
+                runner.run(source) { line, isError ->
+                    runOnUiThread { append(line, error = isError) }
+                }
             } catch (error: Throwable) {
-                RunOutcome("error: ${error.message}\n", failed = true)
+                val message = "error: ${error.message}"
+                runOnUiThread { append(message, error = true) }
+                RunOutcome(message + "\n", failed = true)
             }
 
             runOnUiThread {
-                if (outcome.output.isNotEmpty()) {
-                    appendBlock(outcome.output)
-                }
                 statusLine.text = getString(if (outcome.failed) R.string.status_failed else R.string.status_finished)
                 runButton.isEnabled = true
                 running = false
             }
-        }
-    }
-
-    // an error line is tinted so a failure stands out from the printed output around it
-    private fun appendBlock(text: String) {
-        for (line in text.trimEnd('\n').split('\n')) {
-            append(line, error = line.startsWith("error: "))
         }
     }
 

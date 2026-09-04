@@ -52,6 +52,13 @@ targets:
         # the default launch screen needs no storyboard, and the style is pinned so the system never repaints the app
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
+        # the scene lifecycle is what uikit requires, and the app shows exactly one window
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
         # ipad requires every orientation unless the app declares it needs full screen
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
