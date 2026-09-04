@@ -1,5 +1,4 @@
 #include "varn/lua/LuaEngine.h"
-#include "varn/console/Console.h"
 #include "varn/log/Log.h"
 #include "varn/lua/LuaHelpers.h"
 #include "varn/lua/NativeModules.h"
@@ -30,7 +29,7 @@ int LuaEngine::consolePrint(lua_State* L)
         lua_pop(L, 1);
     }
 
-    varn::console::Console::write(varn::console::Level::Log, line);
+    varn::log::Log::output(line);
     return 0;
 }
 

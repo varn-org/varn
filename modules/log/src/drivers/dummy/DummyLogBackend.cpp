@@ -1,11 +1,17 @@
 #include "varn/log/Log.h"
 
-#include "varn/console/Console.h"
-
 namespace varn::log
 {
 
 void Log::emit(Level /*level*/, std::string_view /*message*/)
+{
+}
+
+void Log::output(std::string_view /*message*/)
+{
+}
+
+void Log::setSink(Sink /*sink*/)
 {
 }
 

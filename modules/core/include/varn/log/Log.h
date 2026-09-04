@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <string>
 #include <string_view>
 
@@ -20,6 +21,12 @@ public:
     Log() = delete;
 
     static void emit(Level level, std::string_view message);
+
+    static void output(std::string_view message);
+
+    using Sink = std::function<void(Level, std::string_view)>;
+
+    static void setSink(Sink sink);
 
     static void setLevel(Level level);
 

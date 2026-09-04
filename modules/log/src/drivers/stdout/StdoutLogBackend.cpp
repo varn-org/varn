@@ -1,7 +1,5 @@
 #include "varn/log/Log.h"
 
-#include "varn/console/Console.h"
-
 #include <atomic>
 #include <fstream>
 #include <iostream>
@@ -51,31 +49,67 @@ public:
         static std::ofstream stream;
         return stream;
     }
+
+    static Log::Sink& hostSink()
+    {
+        static Log::Sink sink;
+        return sink;
+    }
+
+    static void deliver(Level level, const std::string& rendered, bool diagnostic)
+    {
+        Log::Sink sink;
+        {
+            std::lock_guard<std::mutex> lock(mutex());
+            sink = hostSink();
+
+            std::ostream& out = diagnostic ? std::cerr : std::cout;
+            out.write(rendered.data(), static_cast<std::streamsize>(rendered.size()));
+            out << '\n'
+                << std::flush;
+
+            std::ofstream& sinkFile = file();
+            if (sinkFile.is_open())
+            {
+                sinkFile.write(rendered.data(), static_cast<std::streamsize>(rendered.size()));
+                sinkFile << '\n'
+                         << std::flush;
+            }
+        }
+
+        if (sink)
+        {
+            sink(level, rendered);
+        }
+    }
 };
 
 void Log::emit(Level level, std::string_view message)
 {
-    varn::console::Console::relayLog(static_cast<varn::console::Level>(static_cast<int>(level) + 1), message);
-
     if (static_cast<int>(level) < StdoutBridge::minLevel().load())
     {
         return;
     }
 
-    std::lock_guard<std::mutex> lock(StdoutBridge::mutex());
-    std::cout << '[' << StdoutBridge::levelTag(level) << "] ";
-    std::cout.write(message.data(), static_cast<std::streamsize>(message.size()));
-    std::cout << '\n'
-              << std::flush;
+    std::string rendered;
+    rendered += '[';
+    rendered += StdoutBridge::levelTag(level);
+    rendered += "] ";
+    rendered.append(message);
 
-    std::ofstream& file = StdoutBridge::file();
-    if (file.is_open())
-    {
-        file << '[' << StdoutBridge::levelTag(level) << "] ";
-        file.write(message.data(), static_cast<std::streamsize>(message.size()));
-        file << '\n'
-             << std::flush;
-    }
+    StdoutBridge::deliver(level, rendered, level >= Level::Warn);
+}
+
+// A printed line carries no tag, so a pipe reads exactly what the script wrote.
+void Log::output(std::string_view message)
+{
+    StdoutBridge::deliver(Level::Info, std::string(message), false);
+}
+
+void Log::setSink(Sink sink)
+{
+    std::lock_guard<std::mutex> lock(StdoutBridge::mutex());
+    StdoutBridge::hostSink() = std::move(sink);
 }
 
 void Log::setLevel(Level level)

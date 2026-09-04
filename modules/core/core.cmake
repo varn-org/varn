@@ -21,7 +21,6 @@ list(APPEND VARN_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/src/lua/LuaEngine.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/src/lua/LuaHelpers.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/src/lua/NativeModules.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/src/console/Console.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/src/log/Log.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/src/tls/CaBundle.cpp"
 )

@@ -1,7 +1,7 @@
 #include "varn/varn.h"
 
 #include "VarnVersion.h"
-#include "varn/console/Console.h"
+#include "varn/log/Log.h"
 #include "varn/runtime/Runtime.h"
 
 #include <string>
@@ -70,12 +70,12 @@ extern "C"
     {
         if (sink == nullptr)
         {
-            varn::console::Console::setHostSink({});
+            varn::log::Log::setSink({});
             return;
         }
 
         // clang-format off
-        varn::console::Console::setHostSink([sink, userdata](varn::console::Level level, std::string_view message)
+        varn::log::Log::setSink([sink, userdata](varn::log::Level level, std::string_view message)
         {
             sink(static_cast<int>(level), std::string(message).c_str(), userdata);
         });
