@@ -178,7 +178,7 @@ final class PlaygroundViewController: UIViewController {
         editor.text = sample.code
     }
 
-    // the engine runs the chunk to completion, so it goes off the main queue and the ui is updated from the result
+    // The engine is advanced by the app's own run loop, so the chunk stays on this thread and nothing is dispatched.
     @objc private func runTapped() {
         guard !running else {
             return
@@ -189,24 +189,21 @@ final class PlaygroundViewController: UIViewController {
         runButton.isEnabled = false
         status.text = "Running…"
 
-        let source = editor.text ?? ""
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self else {
-                return
-            }
-
-            // each line arrives on the main queue as the chunk prints it, so a sample that waits shows progress
-            let outcome = self.runner.run(source: source) { [weak self] line, isError in
+        runner.start(
+            source: editor.text ?? "",
+            onLine: { [weak self] line, isError in
                 self?.append(line: line, error: isError)
-            }
+            },
+            onFinished: { [weak self] failed in
+                guard let self else {
+                    return
+                }
 
-            DispatchQueue.main.async {
-                self.status.text = outcome.failed ? "Finished with errors." : "Finished."
+                self.status.text = failed ? "Finished with errors." : "Finished."
                 self.runButton.isEnabled = true
                 self.running = false
             }
-        }
+        )
     }
 
     @objc private func stopTapped() {

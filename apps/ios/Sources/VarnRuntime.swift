@@ -36,6 +36,30 @@ final class VarnRuntime {
         close()
     }
 
+    /// Receives every line the engine writes, at the level a browser console would have used.
+    ///
+    /// The engine has already sent the line to the platform console, so this is a mirror for an
+    /// interface that wants to show it, not the only place it appears.
+    static func setConsole(_ sink: ((Int32, String) -> Void)?) {
+        guard let sink else {
+            consoleSink = nil
+            varn_set_console(nil, nil)
+            return
+        }
+
+        consoleSink = sink
+        // clang-format off
+        varn_set_console({ level, message, _ in
+            guard let message else {
+                return
+            }
+            VarnRuntime.consoleSink?(level, String(cString: message))
+        }, nil)
+        // clang-format on
+    }
+
+    private nonisolated(unsafe) static var consoleSink: ((Int32, String) -> Void)?
+
     static var version: String {
         guard let text = varn_version() else {
             return "unknown"
@@ -104,6 +128,35 @@ final class VarnRuntime {
             return false
         }
         return varn_runtime_release(handle) == 0
+    }
+
+    /// Runs a chunk and hands control straight back, leaving whatever it armed for `poll` to drive.
+    ///
+    /// This is what an application uses when its own run loop owns the thread, so every host call the
+    /// script makes arrives on that thread rather than on one of the engine's.
+    @discardableResult
+    func load(source: String, chunkName: String = "=(embedded)") -> Int32 {
+        guard let handle else {
+            return -1
+        }
+        return varn_runtime_load_string(handle, source, chunkName)
+    }
+
+    @discardableResult
+    func load(file path: String) -> Int32 {
+        guard let handle else {
+            return -1
+        }
+        return varn_runtime_load_file(handle, path)
+    }
+
+    /// Advances the runtime once without blocking, answering whether anything can still make progress.
+    @discardableResult
+    func poll() -> Bool {
+        guard let handle else {
+            return false
+        }
+        return varn_runtime_poll(handle) == 1
     }
 
     @discardableResult

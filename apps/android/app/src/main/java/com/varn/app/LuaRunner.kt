@@ -1,97 +1,121 @@
 package com.varn.app
 
+import android.os.Handler
+import android.os.Looper
 import com.varn.VarnRuntime
 import java.io.File
-import org.json.JSONTokener
 
 // what one run produced, with the output already separated from the failure that ended it
 data class RunOutcome(val output: String, val failed: Boolean)
 
 /**
- * Runs a Lua chunk on the embedded engine and reports each line it prints as it is printed.
+ * Runs a Lua chunk on the embedded engine, driven by the app's own looper.
  *
- * The runtime answers a run with an exit code and nothing else, so the chunk is wrapped in a harness
- * that replaces `print` with one handing every line to the host, which is what lets the console fill
- * while a sample that waits on the network is still running.
+ * The engine is never given a thread of its own. The chunk is loaded and then advanced one tick at a
+ * time on the main looper, so everything the script does — a `print`, a host call, a coroutine
+ * resuming after the network answered — happens on the thread that owns the interface, as it happens,
+ * rather than after the script has finished.
  */
 class LuaRunner(private val workDir: File) {
 
-    @Volatile
-    private var current: VarnRuntime? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private var runtime: VarnRuntime? = null
+    private var onLine: ((String, Boolean) -> Unit)? = null
+    private var onFinished: ((RunOutcome) -> Unit)? = null
+    private val captured = StringBuilder()
+    private var sawError = false
 
     fun version(): String = VarnRuntime.version()
 
-    fun run(source: String, onLine: (String, Boolean) -> Unit): RunOutcome {
+    val isRunning: Boolean
+        get() = runtime != null
+
+    /** Starts a chunk and returns at once, reporting each line through [onLine] as the script produces it. */
+    fun start(source: String, onLine: (String, Boolean) -> Unit, onFinished: (RunOutcome) -> Unit) {
+        stop()
+
         val scriptFile = File(workDir, "sample.lua")
         val scratch = File(workDir, "scratch")
-
         scriptFile.writeText(source)
         scratch.deleteRecursively()
         scratch.mkdirs()
 
-        val runtime = VarnRuntime()
-        current = runtime
+        this.onLine = onLine
+        this.onFinished = onFinished
+        captured.setLength(0)
+        sawError = false
 
-        val captured = StringBuilder()
-        runtime.register("emit") { argument ->
-            val line = decodeLine(argument)
-            captured.append(line).append('\n')
-            onLine(line, line.startsWith("error: "))
-            null
+        val engine = VarnRuntime()
+        runtime = engine
+
+        // The engine writes every line to logcat already, and this mirrors it into the app's own console.
+        VarnRuntime.setConsole { level, message ->
+            handler.post { report(message, level >= WARN_LEVEL) }
         }
 
-        val code = try {
-            runtime.runString(harness(scriptFile, scratch), "=harness")
-        } finally {
-            current = null
-            runtime.close()
+        val code = engine.loadString(harness(scriptFile, scratch), "=harness")
+        if (code != 0) {
+            report("the engine rejected the chunk with code $code", true)
+            finish()
+            return
         }
 
-        val output = captured.toString()
-        // the harness reports a lua error as an output line, so a non-zero code means the harness itself failed
-        return RunOutcome(
-            output = output.ifEmpty { if (code == 0) "" else "engine exited with code $code\n" },
-            failed = code != 0 || output.contains("\nerror: ") || output.startsWith("error: "),
-        )
+        handler.post(::tick)
     }
 
-    /**
-     * Turns the JSON the engine hands a host function back into the line the script printed.
-     *
-     * Everything crossing the bridge is JSON, so a printed line arrives quoted and with its tabs and
-     * newlines escaped. A value that is not a JSON string is a bug in the harness rather than output,
-     * so it is shown as it arrived instead of being hidden.
-     */
-    private fun decodeLine(argument: String): String =
-        runCatching { JSONTokener(argument).nextValue() as? String }.getOrNull() ?: argument
-
-    // asks the engine to unwind the running chunk, which is how a long loop is cut short
+    /** Asks the engine to unwind, which is how a long loop is cut short. */
     fun stop() {
-        current?.stop()
+        runtime?.stop()
+        if (runtime != null) {
+            finish()
+        }
+    }
+
+    private fun tick() {
+        val engine = runtime ?: return
+        if (engine.poll()) {
+            handler.post(::tick)
+            return
+        }
+
+        finish()
+    }
+
+    private fun report(line: String, isError: Boolean) {
+        if (isError) {
+            sawError = true
+        }
+
+        captured.append(line).append('\n')
+        onLine?.invoke(line, isError)
+    }
+
+    private fun finish() {
+        handler.removeCallbacksAndMessages(null)
+        VarnRuntime.setConsole(null)
+
+        runtime?.close()
+        runtime = null
+
+        val finished = onFinished
+        val outcome = RunOutcome(captured.toString(), sawError)
+        onLine = null
+        onFinished = null
+        finished?.invoke(outcome)
     }
 
     // the paths come from the app's own cache directory, so they carry nothing that could close the lua string
     private fun harness(script: File, scratch: File): String = """
-        local function emit(line)
-            host.emit(line)
-        end
+        local log = require("log")
 
         local function report(message)
-            emit("error: " .. tostring(message))
+            log.error(tostring(message))
         end
 
-        print = function(...)
-            local parts = {}
-            for i = 1, select("#", ...) do
-                parts[i] = tostring((select(i, ...)))
-            end
-            emit(table.concat(parts, "\t"))
-        end
-
-        -- a sandboxed app has no writable working directory, so the one place a sample may write is named here
+        -- A sandboxed app has no writable working directory, so the one place a sample may write is named here.
         SAMPLE_DIR = [[${scratch.absolutePath}]]
 
-        -- an error inside a background coroutine never reaches the pcall below, so each entry point reports its own
+        -- An error inside a background coroutine never reaches a pcall around the chunk, so each entry point reports its own.
         local async = require("async")
         local realRun, realSpawn = async.run, async.spawn
 
@@ -127,4 +151,9 @@ class LuaRunner(private val workDir: File) {
             end
         end
     """.trimIndent()
+
+    private companion object {
+        // A warning and an error share the tint, since both mean the sample did not do what it set out to.
+        const val WARN_LEVEL = 2
+    }
 }

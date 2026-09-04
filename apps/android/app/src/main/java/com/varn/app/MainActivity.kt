@@ -18,7 +18,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
@@ -101,7 +100,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // the engine runs the chunk to completion, so it goes on a background thread and the ui is updated from the result
+    // The engine is advanced by the app's own looper, so the chunk stays on this thread and nothing is dispatched.
     private fun runCurrentSource() {
         if (running) {
             return
@@ -112,26 +111,15 @@ class MainActivity : AppCompatActivity() {
         runButton.isEnabled = false
         statusLine.text = getString(R.string.status_running)
 
-        val source = codeInput.text.toString()
-
-        thread(name = "varn-run") {
-            val outcome = try {
-                // the console fills as the chunk prints rather than after it finishes, which matters for a sample that waits on the network
-                runner.run(source) { line, isError ->
-                    runOnUiThread { append(line, error = isError) }
-                }
-            } catch (error: Throwable) {
-                val message = "error: ${error.message}"
-                runOnUiThread { append(message, error = true) }
-                RunOutcome(message + "\n", failed = true)
-            }
-
-            runOnUiThread {
+        runner.start(
+            source = codeInput.text.toString(),
+            onLine = { line, isError -> append(line, error = isError) },
+            onFinished = { outcome ->
                 statusLine.text = getString(if (outcome.failed) R.string.status_failed else R.string.status_finished)
                 runButton.isEnabled = true
                 running = false
-            }
-        }
+            },
+        )
     }
 
     private fun dismissKeyboard() {
