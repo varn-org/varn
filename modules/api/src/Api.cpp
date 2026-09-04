@@ -1,9 +1,11 @@
 #include "varn/varn.h"
 
 #include "VarnVersion.h"
+#include "varn/console/Console.h"
 #include "varn/runtime/Runtime.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 extern "C"
@@ -62,6 +64,22 @@ extern "C"
         {
             return 1;
         }
+    }
+
+    void varn_set_console(varn_console_sink sink, void* userdata)
+    {
+        if (sink == nullptr)
+        {
+            varn::console::Console::setHostSink({});
+            return;
+        }
+
+        // clang-format off
+        varn::console::Console::setHostSink([sink, userdata](varn::console::Level level, std::string_view message)
+        {
+            sink(static_cast<int>(level), std::string(message).c_str(), userdata);
+        });
+        // clang-format on
     }
 
     int varn_runtime_load_file(varn_runtime* runtime, const char* path)

@@ -26,6 +26,13 @@ extern "C"
     /* delivers an event to every lua handler registered for name through host.on, callable from any thread */
     VARN_API int varn_runtime_emit(varn_runtime* runtime, const char* name, const char* json_argument);
 
+    /* a console level, matching the browser console functions: 0 log, 1 debug, 2 info, 3 warn, 4 error */
+    typedef void (*varn_console_sink)(int level, const char* message, void* userdata);
+
+    /* receives every line the engine writes, which already went to the platform console the host runs on.
+       pass a null sink to stop receiving. the sink is process wide, as the console it mirrors is */
+    VARN_API void varn_set_console(varn_console_sink sink, void* userdata);
+
     /* runs a chunk without entering the event loop, leaving whatever it armed for varn_runtime_poll to drive */
     VARN_API int varn_runtime_load_file(varn_runtime* runtime, const char* path);
     VARN_API int varn_runtime_load_string(varn_runtime* runtime, const char* source, const char* chunk_name);

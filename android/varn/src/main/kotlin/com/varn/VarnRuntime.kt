@@ -34,6 +34,20 @@ class VarnRuntime : AutoCloseable {
     fun runString(source: String, chunkName: String = "=(embedded)"): Int =
         nativeRunString(handle, source, chunkName)
 
+    /**
+     * Runs a chunk and hands control straight back, leaving whatever it armed for [poll] to drive.
+     *
+     * This is what an application uses when its own run loop owns the thread, so every host call the
+     * script makes arrives on that thread rather than on one of the engine's.
+     */
+    fun loadFile(path: String): Int = nativeLoadFile(handle, path)
+
+    fun loadString(source: String, chunkName: String = "=(embedded)"): Int =
+        nativeLoadString(handle, source, chunkName)
+
+    /** Advances the runtime once without blocking, answering true while something can still make progress. */
+    fun poll(): Boolean = nativePoll(handle) == 1
+
     fun stop() = nativeStop(handle)
 
     override fun close() {
@@ -57,6 +71,9 @@ class VarnRuntime : AutoCloseable {
         @JvmStatic private external fun nativeRelease(handle: Long): Int
         @JvmStatic private external fun nativeRunFile(handle: Long, path: String): Int
         @JvmStatic private external fun nativeRunString(handle: Long, source: String, chunkName: String): Int
+        @JvmStatic private external fun nativeLoadFile(handle: Long, path: String): Int
+        @JvmStatic private external fun nativeLoadString(handle: Long, source: String, chunkName: String): Int
+        @JvmStatic private external fun nativePoll(handle: Long): Int
         @JvmStatic private external fun nativeStop(handle: Long)
         @JvmStatic private external fun nativeFree(handle: Long)
         @JvmStatic private external fun nativeVersion(): String

@@ -1,5 +1,7 @@
 #include "varn/log/Log.h"
 
+#include "varn/console/Console.h"
+
 #include <spdlog/logger.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
@@ -53,6 +55,8 @@ public:
 
 void Log::emit(Level level, std::string_view message)
 {
+    varn::console::Console::relayLog(static_cast<varn::console::Level>(static_cast<int>(level) + 1), message);
+
     SpdlogBridge::ensureLogger();
     spdlog::default_logger()->log(SpdlogBridge::toLevel(level), spdlog::string_view_t(message.data(), message.size()));
 }

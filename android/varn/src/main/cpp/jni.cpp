@@ -262,6 +262,38 @@ extern "C"
         return code;
     }
 
+    JNIEXPORT jint JNICALL Java_com_varn_VarnRuntime_nativeLoadString(JNIEnv* env, jclass, jlong handle, jstring source, jstring chunkName)
+    {
+        const char* nativeSource = source != nullptr ? env->GetStringUTFChars(source, nullptr) : nullptr;
+        const char* nativeChunk = chunkName != nullptr ? env->GetStringUTFChars(chunkName, nullptr) : nullptr;
+        const jint code = varn_runtime_load_string(JniHelpers::asRuntime(handle), nativeSource, nativeChunk);
+        if (nativeSource != nullptr)
+        {
+            env->ReleaseStringUTFChars(source, nativeSource);
+        }
+        if (nativeChunk != nullptr)
+        {
+            env->ReleaseStringUTFChars(chunkName, nativeChunk);
+        }
+        return code;
+    }
+
+    JNIEXPORT jint JNICALL Java_com_varn_VarnRuntime_nativeLoadFile(JNIEnv* env, jclass, jlong handle, jstring path)
+    {
+        const char* nativePath = path != nullptr ? env->GetStringUTFChars(path, nullptr) : nullptr;
+        const jint code = varn_runtime_load_file(JniHelpers::asRuntime(handle), nativePath);
+        if (nativePath != nullptr)
+        {
+            env->ReleaseStringUTFChars(path, nativePath);
+        }
+        return code;
+    }
+
+    JNIEXPORT jint JNICALL Java_com_varn_VarnRuntime_nativePoll(JNIEnv*, jclass, jlong handle)
+    {
+        return varn_runtime_poll(JniHelpers::asRuntime(handle));
+    }
+
     JNIEXPORT void JNICALL Java_com_varn_VarnRuntime_nativeStop(JNIEnv*, jclass, jlong handle)
     {
         varn_runtime_stop(JniHelpers::asRuntime(handle));

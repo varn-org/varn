@@ -1,5 +1,7 @@
 #include "varn/log/Log.h"
 
+#include "varn/console/Console.h"
+
 namespace varn::log
 {
 

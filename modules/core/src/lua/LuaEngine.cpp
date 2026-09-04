@@ -1,11 +1,38 @@
 #include "varn/lua/LuaEngine.h"
+#include "varn/console/Console.h"
 #include "varn/log/Log.h"
 #include "varn/lua/LuaHelpers.h"
 #include "varn/lua/NativeModules.h"
 #include "varn/runtime/Runtime.h"
 
+#include <cstddef>
+#include <string>
+
 namespace varn::lua
 {
+
+// Sends what a script prints to the platform console, which is the tool a developer already watches on every target.
+int LuaEngine::consolePrint(lua_State* L)
+{
+    const int count = lua_gettop(L);
+    std::string line;
+
+    for (int index = 1; index <= count; ++index)
+    {
+        if (index > 1)
+        {
+            line += '\t';
+        }
+
+        std::size_t length = 0;
+        const char* text = luaL_tolstring(L, index, &length);
+        line.append(text, length);
+        lua_pop(L, 1);
+    }
+
+    varn::console::Console::write(varn::console::Level::Log, line);
+    return 0;
+}
 
 int LuaEngine::handlePanic(lua_State* L)
 {
@@ -23,6 +50,9 @@ LuaEngine::LuaEngine(varn::runtime::Runtime& runtime)
 
     // Use generational collection for short-lived garbage over a long-lived application heap.
     lua_gc(L, LUA_GCGEN);
+
+    lua_pushcfunction(L, &LuaEngine::consolePrint);
+    lua_setglobal(L, "print");
 
     varn::lua::LuaHelpers::pushRuntime(L, &runtime);
     configureArgTable();

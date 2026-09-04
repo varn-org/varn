@@ -1,5 +1,7 @@
 #include "varn/log/Log.h"
 
+#include "varn/console/Console.h"
+
 #include <atomic>
 #include <fstream>
 #include <iostream>
@@ -53,6 +55,8 @@ public:
 
 void Log::emit(Level level, std::string_view message)
 {
+    varn::console::Console::relayLog(static_cast<varn::console::Level>(static_cast<int>(level) + 1), message);
+
     if (static_cast<int>(level) < StdoutBridge::minLevel().load())
     {
         return;
