@@ -48,14 +48,12 @@ final class VarnRuntime {
         }
 
         consoleSink = sink
-        // clang-format off
         varn_set_console({ level, message, _ in
             guard let message else {
                 return
             }
             VarnRuntime.consoleSink?(level, String(cString: message))
         }, nil)
-        // clang-format on
     }
 
     private nonisolated(unsafe) static var consoleSink: ((Int32, String) -> Void)?
@@ -80,7 +78,6 @@ final class VarnRuntime {
         let box = HostBox(handler)
         boxes.append(box)
 
-        // clang-format off
         let code = varn_runtime_register(handle, name, { argument, context in
             guard let context else {
                 return nil
@@ -97,7 +94,6 @@ final class VarnRuntime {
             box.answer = strdup(answer)
             return UnsafePointer(box.answer)
         }, Unmanaged.passUnretained(box).toOpaque())
-        // clang-format on
 
         return code == 0
     }

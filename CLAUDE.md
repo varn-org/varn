@@ -74,7 +74,7 @@ Match the existing visual, structural, and architectural pattern. Compact, profe
 - Prefer `const`, references, and smart pointers for clarity, safety, and ownership. Avoid macros, unsafe casts, and raw owning pointers when a safer project-consistent alternative exists.
 - **No free functions anywhere — group helpers as `static` methods of a class** (like `varn::lua::LuaHelpers`). Even a file-local helper is a `static` method of a file-local class declared inside the anonymous namespace, never a bare function floating in the namespace. The only exception is the C-ABI interop functions that must stay `extern "C"` and free.
 - **Do not put comments in headers describing methods, sections, or members.**
-- **Lambdas: clang-format mangles C++ lambdas, so wrap each non-trivial lambda region in `// clang-format off` … `// clang-format on` and hand-format it cleanly.**
+- **Lambdas: clang-format mangles C++ lambdas, so wrap each non-trivial lambda region in `// clang-format off` … `// clang-format on` and hand-format it cleanly.** Those markers belong to C and C++ only, since `format` runs clang-format over `modules/` and `src/` and never reaches the Swift or Kotlin an app is written in.
 - TLS client contexts must point verification at the OS CA bundle (the bundled OpenSSL ships no trust store) — see `resolveCaBundle` in the poco drivers.
 
 ## Comments
