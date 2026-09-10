@@ -1,0 +1,67 @@
+# real-world benchmark stack with mysql and redis behind the three runtimes under test
+# the bench service builds varn for linux, then drives /plaintext, /json, /db and /cache with wrk
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: bench
+      MYSQL_USER: bench
+      MYSQL_PASSWORD: benchpass
+    volumes:
+      - ./sql/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    ports:
+      - "33061:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  redis:
+    image: redis:7
+    ports:
+      - "63791:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  bench:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    working_dir: /varn
+    volumes:
+      - ..:/varn
+      - ${HOME}/.cache/CPM:/root/.cache/CPM
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      THREADS: "${THREADS:-4}"
+      CONNECTIONS: "${CONNECTIONS:-256}"
+      DURATION: "${DURATION:-10s}"
+      WORKERS: "${WORKERS:-1}"
+      POOL_SIZE: "${POOL_SIZE:-64}"
+      JOBS: "${JOBS:-4}"
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+        # the lua server drives mysql and redis through components, which ship in their own repository
+        [ -d .bench-components ] || git clone --depth 1 https://github.com/varn-org/components .bench-components
+        cmake -B build-linux -S . -G Ninja -DCMAKE_BUILD_TYPE=Release >/tmp/cfg.log 2>&1 || { tail -30 /tmp/cfg.log; exit 1; }
+        echo "building varn for linux (-j${JOBS}) ..."
+        cmake --build build-linux -j"${JOBS}" --target varn 2>&1 | tail -2
+        (cd bench/servers && npm install --no-audit --no-fund >/tmp/npm.log 2>&1 || { tail -20 /tmp/npm.log; exit 1; })
+        echo
+        VARN=build-linux/bin/varn bash bench/run.sh

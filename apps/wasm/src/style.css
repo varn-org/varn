@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* match the browser overscroll gutter and chrome to the app background */
+html {
+  background-color: #09090b;
+  color-scheme: dark;
+}
+
+.varn-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(63 63 70) transparent;
+}
+
+.varn-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.varn-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.varn-scroll::-webkit-scrollbar-thumb {
+  background: rgb(63 63 70);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.varn-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(82 82 91);
+  background-clip: padding-box;
+}

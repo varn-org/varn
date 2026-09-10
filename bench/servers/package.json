@@ -1,0 +1,9 @@
+{
+  "name": "varn-bench-servers",
+  "private": true,
+  "description": "node baseline for the varn comparison benchmark",
+  "dependencies": {
+    "ioredis": "^5.4.1",
+    "mysql2": "^3.11.5"
+  }
+}

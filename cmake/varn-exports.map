@@ -1,0 +1,7 @@
+# elf version script: export only the public C API from the shared library, hide every private dependency symbol.
+{
+    global:
+        varn_*;
+    local:
+        *;
+};

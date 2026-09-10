@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Varn</string>
+    <string name="sample_label">Sample</string>
+    <string name="editor_label">Editor</string>
+    <string name="console_label">Console</string>
+    <string name="action_run">Run</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_clear">Clear</string>
+    <string name="status_ready">Ready.</string>
+    <string name="status_running">Running…</string>
+    <string name="status_finished">Finished.</string>
+    <string name="status_failed">Finished with errors.</string>
+    <string name="status_stopped">Stopped.</string>
+    <string name="status_cleared">Console cleared.</string>
+</resources>

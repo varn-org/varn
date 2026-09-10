@@ -1,0 +1,18 @@
+{
+  "name": "app-wasm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "wasm:copy": "node scripts/copy-wasm.mjs",
+    "prebuild": "node scripts/copy-wasm.mjs",
+    "predev": "node scripts/copy-wasm.mjs",
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.4",
+    "tailwindcss": "^4.2.4",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.10"
+  }
+}

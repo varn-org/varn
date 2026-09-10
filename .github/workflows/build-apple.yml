@@ -1,0 +1,80 @@
+name: Apple
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # a newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled
+  group: build-apple-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  build:
+    name: Apple (xcframework)
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-apple-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt') }}
+          restore-keys: cpm-apple-
+
+      - name: Cache per-slice build trees
+        uses: actions/cache@v4
+        with:
+          path: build/apple/slices
+          key: apple-slices-${{ env.BUILD_TYPE }}-${{ hashFiles('cmake/dependencies.cmake', 'cmake/ios/ios.toolchain.cmake', 'tools/core/targets/apple.py', 'CMakeLists.txt') }}
+          restore-keys: apple-slices-${{ env.BUILD_TYPE }}-
+
+      - name: Build xcframework (all Apple slices)
+        run: python3 varn.py apple --config ${{ env.BUILD_TYPE }}
+
+      - name: Verify xcframework
+        run: |
+          test -d build/apple/varn.xcframework
+          plutil -p build/apple/varn.xcframework/Info.plist
+
+          # clang only reads a framework module under this exact name, and without it swift cannot import varn
+          SLICES=$(ls -d build/apple/varn.xcframework/*/ | wc -l)
+          MAPS=$(find build/apple/varn.xcframework -name module.modulemap | wc -l)
+          echo "slices: $SLICES, module maps: $MAPS"
+          test "$MAPS" -eq "$SLICES"
+          test "$(find build/apple/varn.xcframework -name '*.modulemap' ! -name module.modulemap | wc -l)" -eq 0
+
+      - name: Package
+        run: |
+          mkdir -p dist/varn-apple
+          cp -R build/apple/varn.xcframework dist/varn-apple/
+          cp LICENSE.md dist/varn-apple/
+          tar -czf varn-apple-xcframework.tar.gz -C dist varn-apple
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: varn-apple-xcframework
+          path: varn-apple-xcframework.tar.gz

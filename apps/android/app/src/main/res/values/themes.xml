@@ -1,0 +1,13 @@
+<resources>
+    <!-- a fixed dark theme rather than DayNight, so the system setting never changes the palette -->
+    <style name="Theme.Varn" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/varn_accent</item>
+        <item name="colorOnPrimary">@color/varn_on_accent</item>
+        <item name="colorSurface">@color/varn_surface</item>
+        <item name="colorOnSurface">@color/varn_text</item>
+        <item name="android:colorBackground">@color/varn_background</item>
+        <item name="android:statusBarColor">@color/varn_background</item>
+        <item name="android:navigationBarColor">@color/varn_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

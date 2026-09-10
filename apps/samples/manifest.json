@@ -1,0 +1,84 @@
+{
+  "samples": [
+    {
+      "module": "Lua",
+      "label": "Lua \u2014 fibonacci",
+      "file": "01-fibonacci.lua"
+    },
+    {
+      "module": "Lua",
+      "label": "Lua \u2014 strings & patterns",
+      "file": "02-strings.lua"
+    },
+    {
+      "module": "Lua",
+      "label": "Lua \u2014 tables & sorting",
+      "file": "03-tables.lua"
+    },
+    {
+      "module": "Lua",
+      "label": "Lua \u2014 error handling",
+      "file": "04-errors.lua"
+    },
+    {
+      "module": "Lua",
+      "label": "Lua \u2014 coroutines",
+      "file": "05-coroutines.lua"
+    },
+    {
+      "module": "Lua",
+      "label": "Lua \u2014 metatables & operators",
+      "file": "06-metatables.lua"
+    },
+    {
+      "module": "Data",
+      "label": "json \u2014 encode & decode",
+      "file": "07-json.lua"
+    },
+    {
+      "module": "Data",
+      "label": "xml \u2014 encode & decode",
+      "file": "08-xml.lua"
+    },
+    {
+      "module": "Data",
+      "label": "datetime \u2014 parse, format, math",
+      "file": "10-datetime.lua"
+    },
+    {
+      "module": "System",
+      "label": "crypto \u2014 digests, hmac, passwords",
+      "file": "09-crypto.lua"
+    },
+    {
+      "module": "System",
+      "label": "fs \u2014 read, write, stat",
+      "file": "11-fs.lua"
+    },
+    {
+      "module": "System",
+      "label": "zip \u2014 create, list, extract",
+      "file": "12-zip.lua"
+    },
+    {
+      "module": "System",
+      "label": "platform \u2014 host & engine info",
+      "file": "14-platform.lua"
+    },
+    {
+      "module": "System",
+      "label": "log \u2014 levels",
+      "file": "15-log.lua"
+    },
+    {
+      "module": "Async",
+      "label": "async \u2014 timers, spawn, combinators",
+      "file": "13-async.lua"
+    },
+    {
+      "module": "Async",
+      "label": "http \u2014 client fetch (needs network)",
+      "file": "16-http.lua"
+    }
+  ]
+}
