@@ -1,0 +1,118 @@
+name: Apple
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # A newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled.
+  group: build-apple-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  # The compiler cache is the prefix "sccache/" of the Cloudflare R2 bucket "varn-ci", which sccache reaches through its S3 API with the token of the secrets of the repository. A pull request from a fork gets no secrets and compiles without it, and the server of sccache lives for the whole job.
+  SCCACHE_BUCKET: varn-ci
+  SCCACHE_S3_KEY_PREFIX: sccache/
+  SCCACHE_REGION: auto
+  SCCACHE_S3_USE_SSL: "true"
+  SCCACHE_IDLE_TIMEOUT: "0"
+  SCCACHE_ENDPOINT: ${{ secrets.VARN_R2_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.VARN_R2_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.VARN_R2_SECRET }}
+  # Varn keeps every OpenSSL that it builds as a prebuilt package in this folder, named after everything the build depends on, and the jobs that build OpenSSL keep the folder in the bucket under "dependencies/".
+  VARN_PACKAGE_CACHE: ${{ github.workspace }}/.cache/packages
+
+
+jobs:
+  # Each family of slices compiles in a job of its own, and the slices of every family ship in the XCFramework.
+  slices:
+    name: Apple slices
+    strategy:
+      fail-fast: false
+      matrix:
+        family: [ios, intel-simulators, tvos, watchos, visionos, macos]
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build-environment
+        with:
+          dependencies: apple-${{ matrix.family }}
+
+      - name: Build
+        run: python3 varn.py apple --config ${{ env.BUILD_TYPE }} --family ${{ matrix.family }} --jobs $(sysctl -n hw.ncpu)
+
+      # The framework of macOS links its versions with symbolic links, which an archive keeps and an artifact does not.
+      - name: Pack
+        run: tar -czf apple-${{ matrix.family }}.tar.gz $(find build/apple/slices -type d -name varn.framework -prune)
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: apple-${{ matrix.family }}
+          path: apple-${{ matrix.family }}.tar.gz
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()
+
+      - uses: ./.github/actions/caches
+
+  xcframework:
+    name: Apple XCFramework
+    needs: slices
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: apple-*
+          merge-multiple: true
+
+      - name: Unpack
+        run: for archive in apple-*.tar.gz; do tar -xzf "$archive"; done
+
+      - name: Assemble
+        run: python3 varn.py apple --assemble
+
+      - name: Verify
+        run: |
+          plutil -p build/apple/varn.xcframework/Info.plist
+
+          # Clang only reads a framework module under this exact name, and without it Swift cannot import `varn`.
+          SLICES=$(ls -d build/apple/varn.xcframework/*/ | wc -l)
+          MAPS=$(find build/apple/varn.xcframework -name module.modulemap | wc -l)
+          echo "Slices: $SLICES, module maps: $MAPS."
+          test "$MAPS" -eq "$SLICES"
+          test "$(find build/apple/varn.xcframework -name '*.modulemap' ! -name module.modulemap | wc -l)" -eq 0
+
+      - name: Package
+        run: |
+          mkdir -p dist/varn-apple
+          cp -R build/apple/varn.xcframework dist/varn-apple/
+          cp LICENSE.md dist/varn-apple/
+          tar -czf varn-apple-xcframework.tar.gz -C dist varn-apple
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: varn-apple-xcframework
+          path: varn-apple-xcframework.tar.gz

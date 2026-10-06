@@ -1,0 +1,115 @@
+name: Build environment
+description: Restores the sources of the dependencies, their prebuilt packages and what Gradle and Emscripten download from the bucket "varn-ci", and compiles every source of the job through sccache with the compiler cache of the same bucket.
+
+inputs:
+  save-sources:
+    description: Whether the job saves the sources of the dependencies, which one job of each system does in the runs of the default branch with the action "caches" at its end, while every other job reads them.
+    default: "false"
+  gradle:
+    description: Whether the job builds with Gradle, whose downloads it restores and, in the runs of the default branch, saves with the action "caches" at its end.
+    default: "false"
+  emscripten:
+    description: The version of Emscripten that the job compiles with, which it installs and, in the runs of the default branch, saves with the action "caches" at its end.
+    default: ""
+  dependencies:
+    description: The name of the prebuilt packages of the dependencies of the job, such as "linux-x86_64", for a job that builds OpenSSL. The job restores them before it builds and, in the runs of the default branch, saves those it made with the action "caches" at its end.
+    default: ""
+  sccache-version:
+    description: The release of sccache that compiles every source of the job.
+    default: "v0.19.0"
+
+runs:
+  using: composite
+  steps:
+    # The build of OpenSSL, which runs its own make, keeps to the job count of this variable, as `cmake --build` does, so every build of the job runs as many jobs as the runner has processors.
+    - name: Read the processors of the runner
+      shell: bash
+      run: echo "CMAKE_BUILD_PARALLEL_LEVEL=$(nproc 2>/dev/null || sysctl -n hw.ncpu)" >> "$GITHUB_ENV"
+
+    # Gradle keeps what it downloads in a folder of the workspace, which the cache of its downloads holds.
+    - name: Keep the downloads of Gradle in the workspace
+      if: inputs.gradle == 'true'
+      shell: bash
+      run: echo "GRADLE_USER_HOME=${{ github.workspace }}/.gradle-home" >> "$GITHUB_ENV"
+
+    # The prebuilt packages of the dependencies depend on the compilers of the runner, so their keys name the version of each compiler that a job may build with.
+    - name: Name the compilers of the runner
+      id: compilers
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          Linux)
+            compilers="gcc-$(gcc -dumpfullversion)"
+            if command -v clang > /dev/null; then
+              compilers="$compilers-clang-$(clang -dumpversion)"
+            fi
+            ;;
+          macOS)
+            compilers="xcode-$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')"
+            ;;
+          Windows)
+            compilers="msvc-$VCToolsVersion"
+            ;;
+        esac
+        echo "name=$compilers" >> "$GITHUB_OUTPUT"
+
+    # The bucket "varn-ci" keeps one layer under each prefix: the objects of sccache under "sccache/", the sources of the dependencies, their prebuilt packages and what Gradle downloads under "dependencies/" and the SDK of Emscripten under "tools/". Each cache is an archive whose key ends with everything its contents depend on, so a new pin or compiler makes its own and no cache hides a failure. A pull request from a fork gets no secrets, so it downloads and builds them itself.
+    - name: Restore the caches
+      if: env.SCCACHE_ENDPOINT != ''
+      shell: bash
+      run: |
+        caches="${{ github.action_path }}/../caches/caches.sh"
+        system="${{ runner.os }}-${{ runner.arch }}"
+        pins="${{ hashFiles('cmake/dependencies.cmake', 'cmake/patches/**', 'cmake/openssl.cmake', 'cmake/openssl-package.cmake', 'modules/ffi/libffi.cmake', 'tests/cpp/CMakeLists.txt') }}"
+        default_branch="${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
+        saving() {
+          if [ "$default_branch" = "true" ] && [ "$1" = "true" ]; then
+            echo "missing"
+          else
+            echo "never"
+          fi
+        }
+        bash "$caches" restore "dependencies/sources-${{ runner.os }}-$pins" "$(saving "${{ inputs.save-sources }}")" .cpm-cache
+        if [ -n "${{ inputs.dependencies }}" ]; then
+          bash "$caches" restore "dependencies/packages-${{ inputs.dependencies }}-$system-${{ steps.compilers.outputs.name }}-$pins" "$(saving true)" .cache/packages
+        fi
+        if [ "${{ inputs.gradle }}" = "true" ]; then
+          bash "$caches" restore "dependencies/gradle-$system-${{ hashFiles('android/**/*.gradle.kts', 'android/gradle.properties', 'android/gradle/wrapper/gradle-wrapper.properties') }}" "$(saving true)" .gradle-home/caches/modules-2 .gradle-home/wrapper/dists
+        fi
+        if [ -n "${{ inputs.emscripten }}" ]; then
+          bash "$caches" restore "tools/emscripten-$system-${{ inputs.emscripten }}" "$(saving true)" .tools/emsdk
+        fi
+
+    # The SDK of Emscripten installs from the release of its version into `.tools/emsdk` unless the cache brought it.
+    - name: Install Emscripten
+      if: inputs.emscripten != ''
+      shell: bash
+      run: |
+        if [ ! -d .tools/emsdk ]; then
+          git clone --quiet --depth 1 --branch "${{ inputs.emscripten }}" https://github.com/emscripten-core/emsdk.git .tools/emsdk
+          .tools/emsdk/emsdk install "${{ inputs.emscripten }}"
+        fi
+        .tools/emsdk/emsdk activate "${{ inputs.emscripten }}"
+        source .tools/emsdk/emsdk_env.sh
+        for name in EMSDK EMSDK_NODE EMSDK_PYTHON; do
+          if [ -n "${!name:-}" ]; then
+            echo "$name=${!name}" >> "$GITHUB_ENV"
+          fi
+        done
+        echo "$PATH" | tr ':' '\n' | grep "^$EMSDK" >> "$GITHUB_PATH"
+
+    # The workflow hands sccache the bucket and its token from the secrets of the repository, which a pull request from a fork does not get, so such a run compiles without the cache.
+    - name: Install sccache
+      if: env.SCCACHE_ENDPOINT != ''
+      uses: mozilla-actions/sccache-action@v0.0.11
+      with:
+        version: ${{ inputs.sccache-version }}
+
+    # CMake starts every compile of C, C++, Objective-C and Objective-C++ through sccache, Gradle through the CMake of Android too, and OpenSSL takes the same launcher in its own build.
+    - name: Compile through sccache
+      if: env.SCCACHE_ENDPOINT != ''
+      shell: bash
+      run: |
+        for language in C CXX OBJC OBJCXX; do
+          echo "CMAKE_${language}_COMPILER_LAUNCHER=sccache" >> "$GITHUB_ENV"
+        done

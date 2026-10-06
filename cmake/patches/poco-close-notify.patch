@@ -1,0 +1,50 @@
+--- a/NetSSL_OpenSSL/include/Poco/Net/SecureSocketImpl.h
++++ b/NetSSL_OpenSSL/include/Poco/Net/SecureSocketImpl.h
+@@ -294,6 +294,7 @@
+ 	Poco::AutoPtr<SocketImpl> _pSocket;
+ 	Context::Ptr _pContext;
+ 	bool _needHandshake;
++	bool _closeNotifyPending;
+ 	std::string _peerHostName;
+ 	Session::Ptr _pSession;
+ 	mutable MutexT _mutex;
+--- a/NetSSL_OpenSSL/src/SecureSocketImpl.cpp
++++ b/NetSSL_OpenSSL/src/SecureSocketImpl.cpp
+@@ -43,7 +43,8 @@
+ 	_pSSL(nullptr),
+ 	_pSocket(pSocketImpl),
+ 	_pContext(pContext),
+-	_needHandshake(false)
++	_needHandshake(false),
++	_closeNotifyPending(false)
+ {
+ 	poco_check_ptr (_pSocket);
+ 	poco_check_ptr (_pContext);
+@@ -257,7 +258,7 @@
+ 
+ 		int shutdownState = ::SSL_get_shutdown(_pSSL);
+ 		bool shutdownSent = (shutdownState & SSL_SENT_SHUTDOWN) == SSL_SENT_SHUTDOWN;
+-		if (!shutdownSent)
++		if (!shutdownSent || _closeNotifyPending)
+ 		{
+ 			int rc = 0;
+ 			if (_pSocket->getBlocking())
+@@ -294,7 +295,10 @@
+ 			else
+ 			{
+ 				// For non-blocking sockets, call SSL_shutdown() once.
++				// OpenSSL marks the shutdown as sent even when the socket did not
++				// take the close_notify alert, so the next call sends it then.
+ 				rc = ::SSL_shutdown(_pSSL);
++				_closeNotifyPending = rc < 0 && ::SSL_get_error(_pSSL, rc) == SSL_ERROR_WANT_WRITE;
+ 				if (rc < 0)
+ 				{
+ 					if (SocketImpl::lastError() == POCO_EWOULDBLOCK)
+@@ -662,6 +666,7 @@
+ 		::SSL_set_ex_data(_pSSL, SSLManager::instance().socketIndex(), nullptr);
+ 		::SSL_free(_pSSL);
+ 		_pSSL = nullptr;
++		_closeNotifyPending = false;
+ 	}
+ }
+ 

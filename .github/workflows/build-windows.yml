@@ -1,0 +1,127 @@
+name: Windows
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # A newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled.
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  # The compiler cache is the prefix "sccache/" of the Cloudflare R2 bucket "varn-ci", which sccache reaches through its S3 API with the token of the secrets of the repository. A pull request from a fork gets no secrets and compiles without it, and the server of sccache lives for the whole job.
+  SCCACHE_BUCKET: varn-ci
+  SCCACHE_S3_KEY_PREFIX: sccache/
+  SCCACHE_REGION: auto
+  SCCACHE_S3_USE_SSL: "true"
+  SCCACHE_IDLE_TIMEOUT: "0"
+  SCCACHE_ENDPOINT: ${{ secrets.VARN_R2_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.VARN_R2_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.VARN_R2_SECRET }}
+  # Varn keeps every OpenSSL that it builds as a prebuilt package in this folder, named after everything the build depends on, and the jobs that build OpenSSL keep the folder in the bucket under "dependencies/".
+  VARN_PACKAGE_CACHE: ${{ github.workspace }}/.cache/packages
+
+
+jobs:
+  build:
+    name: Windows
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
+        with:
+          arch: ${{ matrix.arch == 'arm64' && 'arm64' || 'x64' }}
+
+      - uses: ./.github/actions/build-environment
+        with:
+          dependencies: windows-${{ matrix.arch }}
+          save-sources: ${{ matrix.arch == 'x86_64' }}
+
+      - name: Configure
+        run: cmake -B build/release -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DVARN_WARNINGS_AS_ERRORS=ON -DVARN_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build/release --config ${{ env.BUILD_TYPE }} --parallel
+
+      # The runners keep an OpenSSL of their own under Program Files, which the module "FindOpenSSL" of MSVC would answer with, so each package that the build made or took must answer "find_package(OpenSSL)" itself.
+      - name: OpenSSL package
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem $env:VARN_PACKAGE_CACHE -Directory -Filter 'openssl-*' | Where-Object { Test-Path "$($_.FullName)/varn-package.cmake" })
+          if ($packages.Count -eq 0) { throw "The build left no package of OpenSSL in $env:VARN_PACKAGE_CACHE." }
+          foreach ($package in $packages) {
+            cmake -S tests/cmake/openssl-package -B "build/openssl-package/$($package.Name)" -G Ninja "-DVARN_OPENSSL_PACKAGE=$($package.FullName)"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Lua tests
+        shell: pwsh
+        run: python varn.py test --build-dir build/release
+
+      # The C++ target holds the TLS tests, which make their own certificate, so it runs on every desktop platform rather than on Linux alone.
+      - name: C++ tests
+        shell: pwsh
+        run: |
+          ./build/release/bin/varn-scheduler-tests.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./build/release/bin/varn-tests.exe
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/varn-windows-${{ matrix.arch }} | Out-Null
+          Copy-Item build/release/bin/varn.exe dist/varn-windows-${{ matrix.arch }}/
+          Copy-Item LICENSE.md dist/varn-windows-${{ matrix.arch }}/
+          Compress-Archive -Path dist/varn-windows-${{ matrix.arch }} -DestinationPath varn-windows-${{ matrix.arch }}.zip
+
+      # The runner image ships WiX but not NSIS, so the generator CPack needs comes from its release archive, pinned by its digest like every other dependency.
+      - name: NSIS
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11.zip" -OutFile nsis.zip -UserAgent "curl" -MaximumRetryCount 5 -RetryIntervalSec 10
+          if ((Get-FileHash nsis.zip -Algorithm SHA256).Hash -ne "C7D27F780DDB6CFFB4730138CD1591E841F4B7EDB155856901CDF5F214394FA1") { throw "The NSIS archive does not match its digest." }
+          Expand-Archive nsis.zip -DestinationPath $env:RUNNER_TEMP
+          "$env:RUNNER_TEMP\nsis-3.11" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Installer
+        shell: pwsh
+        run: |
+          cpack --config build/release/CPackConfig.cmake -B build/pkg
+          Move-Item (Get-ChildItem build/pkg/*.exe | Select-Object -First 1) varn-windows-${{ matrix.arch }}-setup.exe
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: varn-windows-${{ matrix.arch }}
+          path: |
+            varn-windows-${{ matrix.arch }}.zip
+            varn-windows-${{ matrix.arch }}-setup.exe
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()
+
+      - uses: ./.github/actions/caches
