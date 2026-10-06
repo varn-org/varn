@@ -1,0 +1,60 @@
+#pragma once
+
+#include <lua.hpp>
+#include <string>
+
+namespace varn::runtime
+{
+class Runtime;
+}
+
+namespace varn::async
+{
+
+class AsyncModule
+{
+public:
+    AsyncModule() = delete;
+
+    static void install(lua_State* L);
+    static bool fail(lua_State* L);
+    static void report(lua_State* L, const char* tag);
+    static void wrapFailure(lua_State* L);
+    static int capture(lua_State* L);
+    static int raise(lua_State* L);
+    static void spawnHandler(lua_State* L, int nargs, const char* tag);
+
+private:
+    static varn::runtime::Runtime& luaRuntime(lua_State* L);
+
+    static int startEntry(lua_State* L, bool stopLoopOnSuccess);
+    static int entryBody(lua_State* L);
+    static int entryContinuation(lua_State* L, int status, lua_KContext ctx);
+
+    static int luaSleep(lua_State* L);
+    static int luaYield(lua_State* L);
+    static int luaDelay(lua_State* L);
+    static int luaCancelDelay(lua_State* L);
+    static int luaCancelTask(lua_State* L);
+    static int luaOnFailure(lua_State* L);
+    static bool reportFailure(lua_State* L);
+    static std::string describeFailure(lua_State* L);
+    static int stackDepth(lua_State* L);
+    static void pushFrame(lua_State* L, int level);
+    static int luaSpawn(lua_State* L);
+    static int luaRun(lua_State* L);
+    static int handlerBody(lua_State* L);
+    static int handlerContinuation(lua_State* L, int status, lua_KContext ctx);
+    static int luaPromise(lua_State* L);
+    static int promiseBody(lua_State* L);
+    static int promiseContinuation(lua_State* L, int status, lua_KContext ctx);
+    static int luaDeferred(lua_State* L);
+    static int luaResolveDeferred(lua_State* L);
+    static int luaResolverGc(lua_State* L);
+    static void installResolverMetatable(lua_State* L);
+    static int luaOpen(lua_State* L);
+
+    static void installCombinators(lua_State* L);
+};
+
+} // namespace varn::async

@@ -1,0 +1,104 @@
+name: Windows
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # A newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled.
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: windows-latest
+            msvc: x64
+          - arch: arm64
+            runner: windows-11-arm
+            msvc: arm64
+
+    name: Windows (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc }}
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CPM_SOURCE_CACHE }}
+            build/release/_deps
+          key: cpm-windows-${{ matrix.arch }}-${{ hashFiles('cmake/dependencies.cmake', 'CMakeLists.txt', 'modules/ffi/libffi/varn-vendor-libffi.cmake', 'modules/ffi/libffi/fficonfig.h.in') }}
+          restore-keys: cpm-windows-${{ matrix.arch }}-
+
+      - name: Configure
+        run: cmake -B build/release -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build/release --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Run Lua test suite
+        shell: pwsh
+        run: python varn.py test --build-dir build/release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/varn-windows-${{ matrix.arch }} | Out-Null
+          Copy-Item build/release/bin/varn.exe dist/varn-windows-${{ matrix.arch }}/
+          Copy-Item LICENSE.md dist/varn-windows-${{ matrix.arch }}/
+          Compress-Archive -Path dist/varn-windows-${{ matrix.arch }} -DestinationPath varn-windows-${{ matrix.arch }}.zip
+
+      # The runner image ships WiX but not NSIS, so the generator CPack needs comes from its release archive, pinned by its digest like every other dependency.
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11.zip" -OutFile nsis.zip -UserAgent "curl" -MaximumRetryCount 5 -RetryIntervalSec 10
+          if ((Get-FileHash nsis.zip -Algorithm SHA256).Hash -ne "C7D27F780DDB6CFFB4730138CD1591E841F4B7EDB155856901CDF5F214394FA1") { throw "The NSIS archive does not match its digest." }
+          Expand-Archive nsis.zip -DestinationPath $env:RUNNER_TEMP
+          "$env:RUNNER_TEMP\nsis-3.11" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          cpack --config build/release/CPackConfig.cmake -B build/pkg
+          Move-Item (Get-ChildItem build/pkg/*.exe | Select-Object -First 1) varn-windows-${{ matrix.arch }}-setup.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: varn-windows-${{ matrix.arch }}
+          path: |
+            varn-windows-${{ matrix.arch }}.zip
+            varn-windows-${{ matrix.arch }}-setup.exe
