@@ -1,0 +1,41 @@
+#pragma once
+
+#include <lua.hpp>
+#include <string>
+
+namespace varn::runtime
+{
+class Runtime;
+}
+
+namespace varn::lua
+{
+
+class LuaEngine
+{
+public:
+    explicit LuaEngine(varn::runtime::Runtime& runtime);
+    ~LuaEngine();
+
+    LuaEngine(const LuaEngine&) = delete;
+    LuaEngine& operator=(const LuaEngine&) = delete;
+
+    int runFile(const std::string& path);
+    int runString(const std::string& source, const std::string& chunkName);
+    bool runStringWithoutEventLoop(const std::string& source, const std::string& chunkName, std::string& errorMessage);
+    lua_State* state();
+
+private:
+    static int handlePanic(lua_State* L);
+    static int consolePrint(lua_State* L);
+
+    bool runLoaded(int loadStatus, std::string& error);
+    std::string messageAt(int index, const char* fallback);
+    void installNativeModules();
+    void configureArgTable();
+
+    varn::runtime::Runtime& runtime;
+    lua_State* L = nullptr;
+};
+
+} // namespace varn::lua

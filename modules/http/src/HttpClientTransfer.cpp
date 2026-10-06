@@ -1,0 +1,549 @@
+#include "HttpClientTransfer.h"
+
+#include "HttpClientFailure.h"
+#include "HttpText.h"
+#include "varn/http/HttpClientFailureNote.h"
+#include "varn/log/Log.h"
+#include "varn/runtime/Scheduler.h"
+
+#include <algorithm>
+#include <exception>
+#include <utility>
+
+namespace varn::http::client
+{
+
+namespace
+{
+// The body a transport may have handed to the loop that the loop has not delivered yet, which bounds what a slow consumer costs in memory.
+constexpr std::size_t kWindowBytes = 4u * 1024u * 1024u;
+
+// A paused transport resumes once the loop has delivered half of what it holds, so it neither stalls nor flaps around the bound.
+constexpr std::size_t kResumeBytes = kWindowBytes / 2;
+
+// A transport waiting for room checks this often whether the scheduler stopped or the deadline passed, since neither wakes it.
+constexpr std::chrono::milliseconds kRoomCheck{50};
+} // namespace
+
+// One request in flight, shared by the handle of its caller, the transport that runs it and the jobs that deliver it on the loop.
+HttpClientTransfer::HttpClientTransfer(varn::runtime::Scheduler& scheduler, Request request, HttpClient::Callbacks callbacks)
+    : scheduler(scheduler)
+    , wanted(std::move(request))
+    , callbacks(std::move(callbacks))
+    , callerReleases(this->callbacks.releasesChunks)
+{
+}
+
+// Arms the one deadline of the whole request on the loop, so it ends the transfer on time whatever its transport waits for.
+void HttpClientTransfer::begin()
+{
+    end = std::chrono::steady_clock::now() + wanted.timeout;
+    std::weak_ptr<HttpClientTransfer> weak = weak_from_this();
+
+    // clang-format off
+    timer = scheduler.mainLoop().postDelayed(static_cast<long long>(wanted.timeout.count()), [weak]
+    {
+        if (const auto self = weak.lock())
+        {
+            self->halt(self->timeoutError(), true);
+        }
+    });
+    // clang-format on
+}
+
+void HttpClientTransfer::cancel()
+{
+    halt(Error{ErrorCode::Cancelled, "The request was cancelled."}, true);
+}
+
+// Ends the transfer without calling any of its callbacks again, for a client that goes away while it runs.
+// A completion or a chunk already on its way to the loop is dropped too, whichever end claimed the transfer first.
+void HttpClientTransfer::abandon()
+{
+    abandoned.store(true, std::memory_order_release);
+    halt(Error{ErrorCode::Cancelled, "The request was cancelled."}, false);
+}
+
+// The deadline fires on the loop whatever the transport waits for, so the note of the host joins the failure here rather than in a transport that never sees the timeout.
+Error HttpClientTransfer::timeoutError() const
+{
+    return Error{ErrorCode::Timeout, FailureNote::append("The request to \"" + wanted.url + "\" did not finish within its timeout.", wanted.url)};
+}
+
+Error HttpClientTransfer::tooLargeError() const
+{
+    return Error{ErrorCode::TooLarge, "The response of \"" + wanted.url + "\" is larger than the limit of " + std::to_string(wanted.maxResponseBytes) + " bytes of \"maxResponseBytes\"."};
+}
+
+// Registers what stops the transport where it waits, and refuses it once the transfer is already halted so the transport ends at once.
+bool HttpClientTransfer::setInterrupt(std::function<void()> interrupt)
+{
+    std::lock_guard<std::mutex> lock(interruptMutex);
+    if (halted())
+    {
+        return false;
+    }
+
+    interrupter = std::move(interrupt);
+    return true;
+}
+
+void HttpClientTransfer::clearInterrupt()
+{
+    std::lock_guard<std::mutex> lock(interruptMutex);
+    interrupter = nullptr;
+}
+
+// Lets a transport that cannot wait on its own thread pause while the loop holds a full window and resume once it drains.
+void HttpClientTransfer::setFlow(std::function<void()> pause, std::function<void()> resume)
+{
+    std::lock_guard<std::mutex> lock(flowMutex);
+    pauseFlow = std::move(pause);
+    resumeFlow = std::move(resume);
+}
+
+void HttpClientTransfer::clearFlow()
+{
+    std::lock_guard<std::mutex> lock(flowMutex);
+    pauseFlow = nullptr;
+    resumeFlow = nullptr;
+    paused = false;
+}
+
+// Hands the head of the final response to the loop, and refuses a body that declares itself larger than the limit before a byte of it is read.
+bool HttpClientTransfer::head(ResponseHead head)
+{
+    if (halted())
+    {
+        return false;
+    }
+
+    if (head.contentLength && *head.contentLength > wanted.maxResponseBytes)
+    {
+        halt(tooLargeError(), true);
+        return false;
+    }
+
+    total = head.contentLength;
+    head.headers = combined(std::move(head.headers));
+    if (wanted.bodySink.begin)
+    {
+        try
+        {
+            wanted.bodySink.begin(head);
+        }
+        catch (const HttpClientFailure& failure)
+        {
+            halt(failure.error(), true);
+            return false;
+        }
+        catch (const std::exception& failure)
+        {
+            halt(Error{ErrorCode::Callback, std::string("The body sink failed: ") + failure.what()}, true);
+            return false;
+        }
+    }
+
+    auto self = shared_from_this();
+
+    // clang-format off
+    scheduler.mainLoop().post([self, head = std::move(head)]
+    {
+        if (self->skipping())
+        {
+            return;
+        }
+
+        self->invoke([&]
+        {
+            if (self->callbacks.onHead)
+            {
+                self->callbacks.onHead(head);
+            }
+        });
+    });
+    // clang-format on
+    return true;
+}
+
+// Joins the values of a header that a response repeats with a comma, in the order they came and under the name it first came with, as the fetch standard combines them, so every transport hands over the same headers whether or not its platform combined them already.
+Headers HttpClientTransfer::combined(Headers headers)
+{
+    Headers out;
+    out.reserve(headers.size());
+    for (auto& [name, value] : headers)
+    {
+        // clang-format off
+        const auto same = std::find_if(out.begin(), out.end(), [&name](const auto& kept) { return HttpText::iequals(kept.first, name); });
+        // clang-format on
+        if (same == out.end())
+        {
+            out.emplace_back(std::move(name), std::move(value));
+            continue;
+        }
+
+        same->second.append(", ").append(value);
+    }
+
+    return out;
+}
+
+// Hands one piece of the body to the loop, and answers whether the transport should keep reading.
+// A transport without a pause waits here while the loop holds a full window, which is what keeps a slow consumer from buffering the whole body.
+bool HttpClientTransfer::deliver(const char* data, std::size_t length)
+{
+    if (halted())
+    {
+        return false;
+    }
+
+    if (length == 0)
+    {
+        return true;
+    }
+
+    received += length;
+    if (received > wanted.maxResponseBytes)
+    {
+        halt(tooLargeError(), true);
+        return false;
+    }
+
+    if (wanted.bodySink.write)
+    {
+        return sink(data, length);
+    }
+
+    std::string chunk(data, length);
+    const Progress progress{received, total};
+    bool waits = false;
+    {
+        std::lock_guard<std::mutex> lock(flowMutex);
+        inflight += length;
+        waits = !pauseFlow;
+
+        if (pauseFlow && !paused && inflight >= kWindowBytes)
+        {
+            paused = true;
+            pauseFlow();
+        }
+    }
+
+    auto self = shared_from_this();
+
+    // clang-format off
+    scheduler.mainLoop().post([self, chunk = std::move(chunk), progress]
+    {
+        if (!self->callerReleases)
+        {
+            self->release(chunk.size());
+        }
+
+        if (self->skipping())
+        {
+            return;
+        }
+
+        self->invoke([&]
+        {
+            if (self->callbacks.onChunk)
+            {
+                self->callbacks.onChunk(chunk);
+            }
+        });
+
+        if (self->skipping())
+        {
+            return;
+        }
+
+        self->invoke([&]
+        {
+            if (self->callbacks.onProgress)
+            {
+                self->callbacks.onProgress(progress);
+            }
+        });
+    });
+    // clang-format on
+
+    if (waits)
+    {
+        awaitRoom();
+    }
+
+    return !halted();
+}
+
+// Writes one piece of the body to the sink of the request on the thread of the transport instead of the loop, so a caller that writes it somewhere never holds it in memory, and tells the loop how far the body got.
+// The pace of the sink is what holds the transport back.
+bool HttpClientTransfer::sink(const char* data, std::size_t length)
+{
+    try
+    {
+        wanted.bodySink.write(std::string_view(data, length));
+    }
+    catch (const HttpClientFailure& failure)
+    {
+        halt(failure.error(), true);
+        return false;
+    }
+    catch (const std::exception& failure)
+    {
+        halt(Error{ErrorCode::Callback, std::string("The body sink failed: ") + failure.what()}, true);
+        return false;
+    }
+
+    sunk.store(received, std::memory_order_release);
+    postProgress();
+    return !halted();
+}
+
+// Posts the progress of a sunk body at most once at a time, so a loop that polls slowly receives the latest count once rather than a backlog of them.
+void HttpClientTransfer::postProgress()
+{
+    if (progressPending.exchange(true, std::memory_order_acq_rel))
+    {
+        return;
+    }
+
+    auto self = shared_from_this();
+
+    // clang-format off
+    scheduler.mainLoop().post([self]
+    {
+        self->progressPending.store(false, std::memory_order_release);
+        if (self->skipping())
+        {
+            return;
+        }
+
+        const Progress progress{self->sunk.load(std::memory_order_acquire), self->total};
+        self->invoke([&]
+        {
+            if (self->callbacks.onProgress)
+            {
+                self->callbacks.onProgress(progress);
+            }
+        });
+    });
+    // clang-format on
+}
+
+// Reads the next piece of a body that streams from the caller, whose source fills at most the capacity and answers how many bytes it wrote, zero once the body ends, refusing one that writes more or less than the length it declared.
+std::size_t HttpClientTransfer::readBody(char* buffer, std::size_t capacity)
+{
+    if (halted())
+    {
+        throw HttpClientFailure(ErrorCode::Cancelled, "The request was cancelled.");
+    }
+
+    std::size_t written = 0;
+    try
+    {
+        written = wanted.bodySource(buffer, capacity);
+    }
+    catch (const std::exception& failure)
+    {
+        throw HttpClientFailure(ErrorCode::Callback, std::string("The body source failed: ") + failure.what());
+    }
+    catch (...)
+    {
+        throw HttpClientFailure(ErrorCode::Callback, "The body source failed without a message.");
+    }
+
+    if (written > capacity)
+    {
+        throw HttpClientFailure(ErrorCode::Callback, "The body source answered more bytes than its buffer holds.");
+    }
+
+    sent += written;
+    const bool overran = wanted.bodyLength && sent > *wanted.bodyLength;
+    const bool shortened = wanted.bodyLength && written == 0 && sent < *wanted.bodyLength;
+    if (overran || shortened)
+    {
+        throw HttpClientFailure(ErrorCode::Invalid, "The body source wrote " + std::string(overran ? "more" : "less") + " than the " + std::to_string(*wanted.bodyLength) + " bytes of \"bodyLength\".");
+    }
+
+    return written;
+}
+
+varn::runtime::EventLoop& HttpClientTransfer::loop() const
+{
+    return scheduler.mainLoop();
+}
+
+void HttpClientTransfer::succeed()
+{
+    settle(std::nullopt);
+}
+
+// A request that the network did not carry to its host carries the note of the host, such as a permission of the system that the app does not hold.
+void HttpClientTransfer::fail(Error error)
+{
+    if (error.code == ErrorCode::Network)
+    {
+        error.message = FailureNote::append(error.message, wanted.url);
+    }
+
+    settle(std::move(error));
+}
+
+// Ends a transfer its transport finished, behind the head and the chunks it already posted, unless something else ended it first.
+void HttpClientTransfer::settle(std::optional<Error> error)
+{
+    if (claimed.exchange(true, std::memory_order_acq_rel))
+    {
+        return;
+    }
+
+    auto self = shared_from_this();
+
+    // clang-format off
+    scheduler.mainLoop().post([self, error = std::move(error)]
+    {
+        self->complete(error, true);
+    });
+    // clang-format on
+}
+
+// Ends the transfer from outside its transport, stopping the transport where it waits and dropping whatever it already handed to the loop.
+void HttpClientTransfer::halt(Error error, bool notify)
+{
+    if (claimed.exchange(true, std::memory_order_acq_rel))
+    {
+        return;
+    }
+
+    stopping.store(true, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lock(interruptMutex);
+        if (interrupter)
+        {
+            interrupter();
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(flowMutex);
+    }
+    room.notify_all();
+
+    auto self = shared_from_this();
+
+    // clang-format off
+    scheduler.mainLoop().post([self, error = std::move(error), notify]
+    {
+        self->complete(error, notify);
+    });
+    // clang-format on
+}
+
+// Calls the completion once on the loop and releases every callback there, since one may hold state only the loop may touch.
+// A callback that failed is what the completion reports, even when the transport had already finished by the time it ran.
+void HttpClientTransfer::complete(const std::optional<Error>& error, bool notify)
+{
+    finished = true;
+    scheduler.mainLoop().cancelTimer(timer);
+    const HttpClient::Callbacks done = std::move(callbacks);
+    callbacks = HttpClient::Callbacks{};
+
+    if (!notify || !done.onComplete || abandoned.load(std::memory_order_acquire) || scheduler.stopped())
+    {
+        return;
+    }
+
+    try
+    {
+        done.onComplete(callbackFailure ? callbackFailure : error);
+    }
+    catch (const std::exception& failure)
+    {
+        varn::log::Log::error(std::string("The completion callback failed: ") + failure.what());
+    }
+    catch (...)
+    {
+        varn::log::Log::error("The completion callback failed without a message.");
+    }
+}
+
+// Waits on the thread of the transport until the loop has room for more of the body, the transfer halts, the deadline passes or the scheduler stops.
+void HttpClientTransfer::awaitRoom()
+{
+    std::unique_lock<std::mutex> lock(flowMutex);
+    while (inflight >= kWindowBytes && !halted())
+    {
+        if (scheduler.stopped())
+        {
+            lock.unlock();
+            abandon();
+            return;
+        }
+
+        if (std::chrono::steady_clock::now() >= end)
+        {
+            lock.unlock();
+            halt(timeoutError(), true);
+            return;
+        }
+
+        room.wait_for(lock, kRoomCheck);
+    }
+}
+
+void HttpClientTransfer::release(std::size_t length)
+{
+    {
+        std::lock_guard<std::mutex> lock(flowMutex);
+        inflight -= length;
+
+        if (paused && inflight <= kResumeBytes)
+        {
+            paused = false;
+            if (resumeFlow)
+            {
+                resumeFlow();
+            }
+        }
+    }
+
+    room.notify_all();
+}
+
+// A job of the loop delivers nothing once the transfer ended or the scheduler stopped.
+bool HttpClientTransfer::skipping() const
+{
+    return finished || halted() || abandoned.load(std::memory_order_acquire) || scheduler.stopped();
+}
+
+// Ends the transfer with the failure of a callback on the loop, and stops every later job of it even when the transport already finished and settled it.
+void HttpClientTransfer::failCallback(Error error)
+{
+    if (!callbackFailure)
+    {
+        callbackFailure = error;
+    }
+
+    halt(std::move(error), true);
+    stopping.store(true, std::memory_order_release);
+}
+
+// Runs a callback of the caller, and ends the transfer with its failure, since a callback that throws cannot be told to stop any other way.
+template <typename Work>
+void HttpClientTransfer::invoke(const Work& work)
+{
+    try
+    {
+        work();
+    }
+    catch (const std::exception& failure)
+    {
+        failCallback(Error{ErrorCode::Callback, std::string("A callback failed: ") + failure.what()});
+    }
+    catch (...)
+    {
+        failCallback(Error{ErrorCode::Callback, "A callback failed without a message."});
+    }
+}
+
+} // namespace varn::http::client

@@ -1,0 +1,104 @@
+name: macOS
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # A newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled.
+  group: build-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  # The compiler cache is the prefix "sccache/" of the Cloudflare R2 bucket "varn-ci", which sccache reaches through its S3 API with the token of the secrets of the repository. A pull request from a fork gets no secrets and compiles without it, and the server of sccache lives for the whole job.
+  SCCACHE_BUCKET: varn-ci
+  SCCACHE_S3_KEY_PREFIX: sccache/
+  SCCACHE_REGION: auto
+  SCCACHE_S3_USE_SSL: "true"
+  SCCACHE_IDLE_TIMEOUT: "0"
+  SCCACHE_ENDPOINT: ${{ secrets.VARN_R2_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.VARN_R2_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.VARN_R2_SECRET }}
+  # Varn keeps every OpenSSL that it builds as a prebuilt package in this folder, named after everything the build depends on, and the jobs that build OpenSSL keep the folder in the bucket under "dependencies/".
+  VARN_PACKAGE_CACHE: ${{ github.workspace }}/.cache/packages
+
+
+jobs:
+  build:
+    name: macOS
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build-environment
+        with:
+          dependencies: macos-${{ matrix.arch }}
+          save-sources: ${{ matrix.arch == 'arm64' }}
+
+      # The runner is Apple silicon, so the Intel build is a cross build that runs no test.
+      - name: Configure
+        run: cmake -B build/release -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DVARN_WARNINGS_AS_ERRORS=ON -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} ${{ matrix.arch == 'arm64' && '-DVARN_BUILD_TESTS=ON' || '' }}
+
+      - name: Build
+        run: cmake --build build/release --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
+
+      - name: Lua tests
+        if: matrix.arch == 'arm64'
+        run: python3 varn.py test --build-dir build/release
+
+      # The C++ target holds the TLS tests, which make their own certificate, so it runs on every desktop platform rather than on Linux alone.
+      - name: C++ tests
+        if: matrix.arch == 'arm64'
+        run: |
+          ./build/release/bin/varn-scheduler-tests
+          ./build/release/bin/varn-tests
+
+      - name: Architecture
+        run: lipo build/release/bin/varn -verify_arch ${{ matrix.arch }}
+
+      - name: Package
+        run: |
+          mkdir -p dist/varn-macos-${{ matrix.arch }}
+          cp build/release/bin/varn dist/varn-macos-${{ matrix.arch }}/
+          cp LICENSE.md dist/varn-macos-${{ matrix.arch }}/
+          tar -czf varn-macos-${{ matrix.arch }}.tar.gz -C dist varn-macos-${{ matrix.arch }}
+
+      - name: Installer
+        run: |
+          cpack --config build/release/CPackConfig.cmake -B build/pkg
+          mv build/pkg/*.pkg varn-macos-${{ matrix.arch }}.pkg
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: varn-macos-${{ matrix.arch }}
+          path: |
+            varn-macos-${{ matrix.arch }}.tar.gz
+            varn-macos-${{ matrix.arch }}.pkg
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()
+
+      - uses: ./.github/actions/caches

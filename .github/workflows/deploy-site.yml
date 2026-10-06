@@ -1,0 +1,58 @@
+name: Deploy site
+
+on:
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+  EMSCRIPTEN_VERSION: 7.0.0
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  # The compiler cache is the prefix "sccache/" of the Cloudflare R2 bucket "varn-ci", which sccache reaches through its S3 API with the token of the secrets of the repository. A pull request from a fork gets no secrets and compiles without it, and the server of sccache lives for the whole job.
+  SCCACHE_BUCKET: varn-ci
+  SCCACHE_S3_KEY_PREFIX: sccache/
+  SCCACHE_REGION: auto
+  SCCACHE_S3_USE_SSL: "true"
+  SCCACHE_IDLE_TIMEOUT: "0"
+  SCCACHE_ENDPOINT: ${{ secrets.VARN_R2_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.VARN_R2_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.VARN_R2_SECRET }}
+  # Varn keeps every OpenSSL that it builds as a prebuilt package in this folder, named after everything the build depends on, and the jobs that build OpenSSL keep the folder in the bucket under "dependencies/".
+  VARN_PACKAGE_CACHE: ${{ github.workspace }}/.cache/packages
+
+
+jobs:
+  deploy:
+    name: Deploy
+    # A manual run only publishes when launched from `main`.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The compiler of Emscripten is a script that stays the same from one version to the next, so its version joins the hash of every object that sccache keeps.
+      - name: Emscripten objects
+        run: echo "SCCACHE_C_CUSTOM_CACHE_BUSTER=emscripten-$EMSCRIPTEN_VERSION" >> "$GITHUB_ENV"
+
+      - uses: ./.github/actions/build-environment
+        with:
+          emscripten: ${{ env.EMSCRIPTEN_VERSION }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.WEBSITE_DEPLOY_KEY }}
+
+      - name: Commit identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Publish
+        run: python3 varn.py site-deploy --remote git@github.com:varn-org/website.git
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()

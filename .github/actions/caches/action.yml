@@ -1,0 +1,10 @@
+name: Caches
+description: Saves into the bucket "varn-ci" the caches of the dependency sources and the downloads of Gradle and Emscripten that the action "build-environment" of the job found missing in a run of the default branch, so it runs as the last step of the job that saves them, once everything before it succeeded.
+
+runs:
+  using: composite
+  steps:
+    - name: Save the caches
+      if: env.SCCACHE_ENDPOINT != ''
+      shell: bash
+      run: bash "${{ github.action_path }}/caches.sh" save

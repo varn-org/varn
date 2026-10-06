@@ -1,0 +1,86 @@
+name: Android
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # A newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled.
+  group: build-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  # The compiler cache is the prefix "sccache/" of the Cloudflare R2 bucket "varn-ci", which sccache reaches through its S3 API with the token of the secrets of the repository. A pull request from a fork gets no secrets and compiles without it, and the server of sccache lives for the whole job.
+  SCCACHE_BUCKET: varn-ci
+  SCCACHE_S3_KEY_PREFIX: sccache/
+  SCCACHE_REGION: auto
+  SCCACHE_S3_USE_SSL: "true"
+  SCCACHE_IDLE_TIMEOUT: "0"
+  SCCACHE_ENDPOINT: ${{ secrets.VARN_R2_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.VARN_R2_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.VARN_R2_SECRET }}
+  # Varn keeps every OpenSSL that it builds as a prebuilt package in this folder, named after everything the build depends on, and the jobs that build OpenSSL keep the folder in the bucket under "dependencies/".
+  VARN_PACKAGE_CACHE: ${{ github.workspace }}/.cache/packages
+
+
+jobs:
+  build:
+    name: Android
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # The Gradle module pins the NDK and CMake installed here, an NDK whose headers declare newer APIs as weak symbols for libuv and CMake new enough for Poco.
+      - name: NDK and CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;30.0.16248370" "cmake;3.31.6" >/dev/null
+
+      - uses: ./.github/actions/build-environment
+        with:
+          dependencies: android
+          gradle: "true"
+
+      - name: Build
+        run: python3 varn.py android --config ${{ env.BUILD_TYPE }} --jobs $(nproc)
+
+      - name: Package
+        run: |
+          AAR=$(ls android/varn/build/outputs/aar/*-release.aar | head -1)
+          test -f "$AAR"
+          mkdir -p dist/varn-android
+          cp "$AAR" dist/varn-android/
+          cp LICENSE.md dist/varn-android/
+          tar -czf varn-android-aar.tar.gz -C dist varn-android
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: varn-android-aar
+          path: varn-android-aar.tar.gz
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()
+
+      - uses: ./.github/actions/caches

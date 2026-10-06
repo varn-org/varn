@@ -1,0 +1,102 @@
+name: WebAssembly
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # A newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled.
+  group: build-wasm-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  EMSCRIPTEN_VERSION: 7.0.0
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  # The compiler cache is the prefix "sccache/" of the Cloudflare R2 bucket "varn-ci", which sccache reaches through its S3 API with the token of the secrets of the repository. A pull request from a fork gets no secrets and compiles without it, and the server of sccache lives for the whole job.
+  SCCACHE_BUCKET: varn-ci
+  SCCACHE_S3_KEY_PREFIX: sccache/
+  SCCACHE_REGION: auto
+  SCCACHE_S3_USE_SSL: "true"
+  SCCACHE_IDLE_TIMEOUT: "0"
+  SCCACHE_ENDPOINT: ${{ secrets.VARN_R2_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.VARN_R2_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.VARN_R2_SECRET }}
+  # Varn keeps every OpenSSL that it builds as a prebuilt package in this folder, named after everything the build depends on, and the jobs that build OpenSSL keep the folder in the bucket under "dependencies/".
+  VARN_PACKAGE_CACHE: ${{ github.workspace }}/.cache/packages
+
+
+jobs:
+  build:
+    name: WebAssembly
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The compiler of Emscripten is a script that stays the same from one version to the next, so its version joins the hash of every object that sccache keeps.
+      - name: Emscripten objects
+        run: echo "SCCACHE_C_CUSTOM_CACHE_BUSTER=emscripten-$EMSCRIPTEN_VERSION" >> "$GITHUB_ENV"
+
+      - uses: ./.github/actions/build-environment
+        with:
+          emscripten: ${{ env.EMSCRIPTEN_VERSION }}
+
+      - name: Configure
+        run: emcmake cmake -B build/wasm -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build/wasm --config ${{ env.BUILD_TYPE }} -j$(nproc)
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # The engine pumps itself from the event loop of the page and unwinds Lua on the native exceptions of WebAssembly, which Node.js runs as a browser does.
+      - name: Engine tests
+        run: node tests/wasm/varn-wasm-test.mjs build/wasm/bin
+
+      - name: Browser shell
+        working-directory: apps/wasm
+        env:
+          VARN_WASM_DIR: ${{ github.workspace }}/build/wasm/bin
+        run: |
+          npm install
+          npm run build
+
+      # The playground ships as the browser shell, and the engine ships on its own, which is what a site embeds when it wants the runtime rather than the playground.
+      - name: Package
+        run: |
+          tar -czf app-wasm.tar.gz -C apps/wasm dist
+          mkdir -p dist/varn-wasm
+          cp build/wasm/bin/varn-wasm.js build/wasm/bin/varn-wasm.wasm dist/varn-wasm/
+          cp LICENSE.md dist/varn-wasm/
+          tar -czf varn-wasm.tar.gz -C dist varn-wasm
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-wasm
+          path: |
+            app-wasm.tar.gz
+            varn-wasm.tar.gz
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()
+
+      - uses: ./.github/actions/caches
