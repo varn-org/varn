@@ -1,0 +1,2 @@
+# The AAR is fetched from a release rather than committed.
+*.aar
