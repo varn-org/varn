@@ -1,0 +1,78 @@
+-- Exercises a TCP `connect`/`listen`/`accept`/`send`/`receive`/`close` round-trip and a UDP `bind`/`sendTo`/`recvFrom` round-trip with defaults.
+local async = require("async")
+local socket = require("socket")
+
+local host = "127.0.0.1"
+local tcpPort
+local udpServerPort
+
+-- The TCP server accepts one client, echoes a prefixed reply, then shuts down cleanly.
+async.spawn(function()
+    -- Listens without an explicit backlog to exercise the default of 64.
+    local listener, lerr = socket.tcp.listen(host, 0):await()
+    assert(not lerr, lerr)
+    tcpPort = listener.port
+
+    local client, aerr = listener:accept():await()
+    assert(not aerr, aerr)
+
+    -- Receives without an explicit `maxBytes` to exercise the default of 65536.
+    local chunk, rerr = client:receive():await()
+    assert(not rerr, rerr)
+    client:send("echo:" .. chunk):await()
+
+    client:close():await()
+    listener:close():await()
+end)
+
+-- The UDP server binds, echoes one datagram back to its sender, then closes.
+async.spawn(function()
+    local server, berr = socket.udp.bind(host, 0):await()
+    assert(not berr, berr)
+    udpServerPort = server.port
+
+    local packet, rerr = server:recvFrom():await()
+    assert(not rerr, rerr)
+    server:sendTo(packet.host, packet.port, "echo:" .. packet.data):await()
+
+    server:close():await()
+end)
+
+-- The client drives both round-trips to completion and verifies the replies and the `recvFrom` shape.
+async.run(function()
+    async.sleep(80):await()
+
+    -- A TCP round-trip.
+    local conn, cerr = socket.tcp.connect(host, tcpPort):await()
+    assert(not cerr, cerr)
+    conn:send("ping"):await()
+    local reply, rerr = conn:receive():await()
+    assert(not rerr, rerr)
+    assert(reply == "echo:ping", "Unexpected TCP reply: " .. tostring(reply))
+    conn:close():await()
+
+    -- A UDP round-trip with the `recvFrom` result table.
+    local udp, uerr = socket.udp.bind(host, 0):await()
+    assert(not uerr, uerr)
+    udp:sendTo(host, udpServerPort, "ping"):await()
+    local datagram, derr = udp:recvFrom():await()
+    assert(not derr, derr)
+    assert(type(datagram) == "table", 'The call "recvFrom" should resolve to a table')
+    assert(datagram.data == "echo:ping", "Unexpected UDP reply: " .. tostring(datagram.data))
+    assert(datagram.host == host, "Unexpected sender host: " .. tostring(datagram.host))
+    assert(datagram.port == udpServerPort, "Unexpected sender port: " .. tostring(datagram.port))
+    udp:close():await()
+
+    -- A listener with no incoming connection releases the pending accept on close.
+    local idle, ierr = socket.tcp.listen(host, 0):await()
+    assert(not ierr, ierr)
+    async.spawn(function()
+        async.sleep(40):await()
+        idle:close():await()
+    end)
+    local accepted, aerr = idle:accept():await()
+    assert(accepted == nil, 'The call "accept" on a closed listener should not resolve to a socket')
+    assert(aerr == "The listener was closed.", 'The call "accept" released by "close" should report the close, not: ' .. tostring(aerr))
+
+    print("The \"socket\" features tests passed.")
+end)
