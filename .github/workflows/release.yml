@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# The builds only read the repository, and the job that publishes the release alone may write to it.
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    uses: ./.github/workflows/build-macos.yml
+    secrets: inherit
+
+  linux:
+    uses: ./.github/workflows/build-linux.yml
+    secrets: inherit
+
+  windows:
+    uses: ./.github/workflows/build-windows.yml
+    secrets: inherit
+
+  apple:
+    uses: ./.github/workflows/build-apple.yml
+    secrets: inherit
+
+  android:
+    uses: ./.github/workflows/build-android.yml
+    secrets: inherit
+
+  wasm:
+    uses: ./.github/workflows/build-wasm.yml
+    secrets: inherit
+
+  release:
+    name: Release
+    needs: [macos, linux, windows, apple, android, wasm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The artifacts that ship are the packages of each system, and the slices that the XCFramework joined stay behind.
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: varn-*
+          path: artifacts
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: app-wasm
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
+            artifacts/*.pkg
+            artifacts/*.deb
+            artifacts/*-setup.exe

@@ -1,0 +1,10 @@
+name: Compiler cache
+description: Prints how many compiles of the job came from the compiler cache, how many compiled and why sccache could not cache the others, in the log and in the summary of the job, once sccache was installed. Ninja names every compile it starts, such as "Building CXX object", whether its object comes from the cache or from the compiler, so this step tells them apart.
+
+runs:
+  using: composite
+  steps:
+    - name: Report the compiler cache
+      if: env.SCCACHE_PATH != ''
+      shell: bash
+      run: sccache --show-stats --stats-format json | python "$GITHUB_ACTION_PATH/report.py" | tee -a "$GITHUB_STEP_SUMMARY"

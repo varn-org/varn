@@ -1,0 +1,59 @@
+-- Checks parser and encoder security boundaries with cases tracked by CWE class.
+local json = require("json")
+
+-- Rejects deeply nested input before the parser can overflow the stack (CWE-674).
+assert(not pcall(json.decode, string.rep("[", 5000) .. string.rep("]", 5000)), "Deep nesting is rejected")
+
+-- Parses a shallow document at a safe depth (CWE-674).
+assert(pcall(json.decode, string.rep("[", 100) .. string.rep("]", 100)), "Shallow nesting parses")
+
+-- Encodes deep nesting without recursion, so it neither crashes nor truncates (CWE-674).
+local deep, cur = {}, nil
+cur = deep
+for _ = 1, 5000 do cur.n = {}; cur = cur.n end
+local deepOk, deepText = pcall(json.encode, deep)
+assert(deepOk and #deepText == 5000 * #'{"n":' + #"{}" + 5000, "Deep encode is whole, not a crash")
+
+-- Refuses a table that reaches itself instead of writing it until a depth cap (CWE-835).
+local loop = { next = {} }
+loop.next.next = loop
+local loopOk, loopErr = pcall(json.encode, loop)
+assert(not loopOk and loopErr:find('The table at key "next.next" contains itself', 1, true), loopErr)
+
+-- Parses a huge but bounded flat array without exhausting resources (CWE-400).
+local big = "[" .. string.rep("1,", 50000) .. "1]"
+local ok, arr = pcall(json.decode, big)
+assert(ok and #arr == 50001, "A huge flat array is handled")
+
+-- Round-trips a large string value with its length intact (CWE-400).
+local huge = json.decode(json.encode(string.rep("x", 100000)))
+assert(#huge == 100000, "A large string value round-trips")
+
+-- Escapes control characters on encode and rejects raw control bytes on decode (CWE-74, CWE-116).
+assert(json.encode("a\1b") == '"a\\u0001b"', "A control char is escaped on encode")
+assert(not pcall(json.decode, '"a' .. string.char(1) .. 'b"'), "A raw control byte in a string is rejected")
+
+-- Replaces invalid UTF-8 in a value on encode (CWE-176).
+assert(type(json.encode("a" .. string.char(0xff, 0xfe, 0x80) .. "b")) == "string", "Invalid UTF-8 does not crash the encoder")
+
+-- Preserves an embedded NUL and its length across a binary round-trip (CWE-176).
+local nul = json.decode(json.encode("a\0b"))
+assert(#nul == 3, "An embedded NUL is preserved")
+
+-- Decodes a number past the `lua_Integer` range to a float (CWE-681, CWE-190).
+local past = json.decode("123456789012345678901234567890")
+assert(math.type(past) == "float", "An out-of-range integer becomes a float")
+
+-- Rejects an absurd exponent (CWE-400).
+assert(not pcall(json.decode, "1e1000000"), "A huge exponent literal is rejected")
+
+-- Resolves duplicate keys deterministically with the last value winning (CWE-20).
+assert(json.decode('{"a":1,"a":2}').a == 2, "Duplicate keys are last-wins")
+
+-- Rejects malformed, truncated, and empty inputs via `pcall` (CWE-20).
+assert(not pcall(json.decode, ""), "Empty input is rejected")
+assert(not pcall(json.decode, '{"a":'), "A truncated object is rejected")
+assert(not pcall(json.decode, "[1,2,"), "A truncated array is rejected")
+assert(not pcall(json.decode, "{}x"), "Trailing garbage is rejected")
+
+print("The \"json\" security tests passed.")

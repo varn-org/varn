@@ -1,0 +1,223 @@
+name: Linux
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "extras/**"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  # A newer push supersedes this run, and a tag build carries its own ref so a release is never cancelled.
+  group: build-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  # The compiler cache is the prefix "sccache/" of the Cloudflare R2 bucket "varn-ci", which sccache reaches through its S3 API with the token of the secrets of the repository. A pull request from a fork gets no secrets and compiles without it, and the server of sccache lives for the whole job.
+  SCCACHE_BUCKET: varn-ci
+  SCCACHE_S3_KEY_PREFIX: sccache/
+  SCCACHE_REGION: auto
+  SCCACHE_S3_USE_SSL: "true"
+  SCCACHE_IDLE_TIMEOUT: "0"
+  SCCACHE_ENDPOINT: ${{ secrets.VARN_R2_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.VARN_R2_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.VARN_R2_SECRET }}
+  # Varn keeps every OpenSSL that it builds as a prebuilt package in this folder, named after everything the build depends on, and the jobs that build OpenSSL keep the folder in the bucket under "dependencies/".
+  VARN_PACKAGE_CACHE: ${{ github.workspace }}/.cache/packages
+
+
+jobs:
+  build:
+    name: Linux
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build-environment
+        with:
+          dependencies: linux-${{ matrix.arch }}
+          save-sources: ${{ matrix.arch == 'x86_64' }}
+
+      # The strictest platform gate compiles the engine's own sources with warnings as errors, since third-party headers arrive through CPM as system includes and cannot drown the signal.
+      - name: Configure
+        run: cmake -B build/release -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DVARN_WARNINGS_AS_ERRORS=ON -DVARN_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build/release --config ${{ env.BUILD_TYPE }} --target varn varn-tests varn-scheduler-tests -j$(nproc)
+
+      - name: Lua tests
+        run: python3 varn.py test --build-dir build/release
+
+      - name: C++ tests
+        run: |
+          ./build/release/bin/varn-scheduler-tests
+          ./build/release/bin/varn-tests
+
+      # The mobile apps run these through a harness rather than a shell, so they are checked the same way.
+      - name: App samples
+        run: VARN_TEST_DIR=$(mktemp -d) build/release/bin/varn apps/samples/verify.lua
+
+      - name: Package
+        run: |
+          mkdir -p dist/varn-linux-${{ matrix.arch }}
+          cp build/release/bin/varn dist/varn-linux-${{ matrix.arch }}/
+          cp LICENSE.md dist/varn-linux-${{ matrix.arch }}/
+          tar -czf varn-linux-${{ matrix.arch }}.tar.gz -C dist varn-linux-${{ matrix.arch }}
+
+      - name: Installer
+        run: |
+          cpack --config build/release/CPackConfig.cmake -B build/pkg
+          mv build/pkg/*.deb varn-linux-${{ matrix.arch }}.deb
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: varn-linux-${{ matrix.arch }}
+          path: |
+            varn-linux-${{ matrix.arch }}.tar.gz
+            varn-linux-${{ matrix.arch }}.deb
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()
+
+      - uses: ./.github/actions/caches
+
+  address:
+    name: AddressSanitizer
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build-environment
+        with:
+          dependencies: address
+
+      - name: Configure
+        run: cmake -B build/asan -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVARN_SANITIZE=address,undefined -DVARN_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build/asan -j$(nproc)
+
+      # LeakSanitizer runs with the address sanitizer and UndefinedBehaviorSanitizer next to it, so this pass catches leaks besides use-after-free, out-of-bounds, buffer overflow and undefined behavior.
+      - name: Lua tests
+        env:
+          ASAN_OPTIONS: abort_on_error=1:halt_on_error=1:detect_leaks=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: python3 varn.py test --build-dir build/asan
+
+      - name: C++ tests
+        env:
+          ASAN_OPTIONS: abort_on_error=1:halt_on_error=1:detect_leaks=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          ./build/asan/bin/varn-scheduler-tests
+          ./build/asan/bin/varn-tests
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()
+
+      - uses: ./.github/actions/caches
+
+  thread:
+    name: ThreadSanitizer
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build-environment
+        with:
+          dependencies: thread
+
+      - name: Configure
+        run: cmake -B build/tsan -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVARN_SANITIZE=thread -DVARN_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build/tsan --target varn-tests varn-scheduler-tests -j$(nproc)
+
+      # The C++ target carries the multi-threaded runtime and teardown tests, which is where a race lives. The Lua suite is not run here because forking under TSan is pathologically slow.
+      - name: C++ tests
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+        run: |
+          ./build/tsan/bin/varn-scheduler-tests
+          ./build/tsan/bin/varn-tests
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()
+
+      - uses: ./.github/actions/caches
+
+  # The target of ports pumps its loop from the run loop of the host, with its worker pools on threads under ThreadSanitizer where the system has them and inside the pump where it has none.
+  pumped:
+    name: Pumped loop
+    strategy:
+      fail-fast: false
+      matrix:
+        threads: [threaded, threadless]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build-environment
+
+      - name: Configure
+        run: cmake -B build/pumped -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVARN_TARGET=port -DVARN_BUILD_TESTS=ON ${{ matrix.threads == 'threaded' && '-DVARN_THREADS=ON -DVARN_SANITIZE=thread' || '-DVARN_THREADS=OFF' }}
+
+      - name: Build
+        run: cmake --build build/pumped --target varn-tests varn-scheduler-tests -j$(nproc)
+
+      - name: C++ tests
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+        run: |
+          ./build/pumped/bin/varn-scheduler-tests
+          ./build/pumped/bin/varn-tests
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()
+
+  # The dependency-free crypto driver is compiled so its CSPRNG of each platform and its SHA in plain C++ keep building and passing their tests.
+  portable:
+    name: Portable crypto
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build-environment
+
+      - name: Configure
+        run: cmake -B build/portable -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DVARN_ENABLE_TLS=OFF -DVARN_CRYPTO_DRIVER=PORTABLE
+
+      - name: Build
+        run: cmake --build build/portable --config ${{ env.BUILD_TYPE }} -j$(nproc)
+
+      - name: Crypto tests
+        run: |
+          VARN_TEST_DIR=$(mktemp -d) build/portable/bin/varn modules/crypto/lua/tests/crypto-test.lua
+          VARN_TEST_DIR=$(mktemp -d) build/portable/bin/varn modules/crypto/lua/tests/crypto-security-test.lua
+
+      - uses: ./.github/actions/compiler-cache
+        if: always()

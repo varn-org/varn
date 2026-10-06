@@ -1,0 +1,12 @@
+framework module varn {
+    umbrella header "varn.h"
+
+    export *
+    module * { export * }
+
+    module DataView {
+        requires objc
+        header "VarnDataView.h"
+        export *
+    }
+}
